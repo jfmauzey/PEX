@@ -11,13 +11,17 @@ import time
 import platform
 
 
-blockedPlugin=False
 #import smbus
+SMBus_avail = False
 try:
     import smbus
+    SMBus_avail = True
 except ModuleNotFoundError:
-    blockedPlugin=True
-    pass
+    try:
+        import smbus2 as smbus
+        SMBus_avail = True
+    except ModuleNotFoundError:
+        pass
 
 
 
@@ -73,13 +77,12 @@ gv.use_gpio_pins = False
 
 pcf[u"devices"] = {}
 
-if blockedPlugin:
+if not SMBus_avail:
     pcf[u"warnmsg"] = "Unable to load library. please follow instructions on the help page"
-    print(u"\33[31mWARNING: SMBUS library was loaded,\nPCF857x plugin will NOT be activated.")
+    print(u"\33[31mWARNING: SMBUS library NOT loaded,\nPCF857x plugin will NOT be activated.")
     print(u"See plugin help page for instructions.\33[0m")
 else:
     pcf[u"warnmsg"] = {}
-
 
 
 # for future use. No test devices available at the moment.
@@ -91,7 +94,7 @@ if (pcf[u"ictype"]=="pcf8575"):
 #### output command when signal received ####
 def on_zone_change(name, **kw):
     """ Send command when core program signals a change in station state."""
-    if blockedPlugin:
+    if not SMBus_avail:
         print("pcf857x plugin blocked due to missing library")
         return
 
