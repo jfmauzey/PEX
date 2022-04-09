@@ -1,6 +1,6 @@
-$def with(commands)
+$def with(pex_d)
 
-$var title: $_(u'SIP PCF857x Plugin') 
+$var title: $_(u'SIP PEX Plugin')
 $var page: pcf857x
 
 <script>
@@ -40,9 +40,9 @@ $var page: pcf857x
     <div class="title">$_(u'PCF857x IO extender boards.') 
     <button class="execute" id="docButton" type="button">$_(u'Help')</button></div>
     
-    $if u"warnmsg" in commands:
-        $if len(commands['warnmsg'])>0:
-            <p><h2>$commands['warnmsg']</h2></p>
+    $if u"warnmsg" in pex_d:
+        $if len(pex_d['warnmsg'])>0:
+            <p><h2>$pex_d['warnmsg']</h2></p>
     
     <br>
     <p>Connect up to 64 (or 128) stations via multiple IO extender boards based on the pcf8574 (or pcf8575)</p>
@@ -58,14 +58,14 @@ $var page: pcf857x
         <table id="optionList">
             <tr>
                 <td style='text-transform: none;'>$_(u'SMBus id:')</td> 
-                <td><input type="number" min="0" max="1" name="bus" value="${commands['bus']}"> (usually 1)</td>
+                <td><input type="number" min="0" max="1" name="bus" value="${pex_d['bus']}"> (usually 1)</td>
             </tr>
             <tr><td colspan="2"><hr></td></tr>
             <tr>
                 <td style='text-transform: none;'>$_(u'IC Type: '):</td>
-                <td><input type="radio" id="pcf8574" name="ictype" value="pcf8574" ${"checked" if commands['ictype' ] =="pcf8574"  else ""}>
+                <td><input type="radio" id="pcf8574" name="ictype" value="pcf8574" ${"checked" if pex_d['ictype' ] =="pcf8574"  else ""}>
                     <label for="pcf8574">pcf8574 (8bit)</label></td>
-                    <td><input type="radio" id="pcf8575" name="ictype" value="pcf8575" ${"checked" if commands['ictype' ] =="pcf8575"  else ""}>
+                    <td><input type="radio" id="pcf8575" name="ictype" value="pcf8575" ${"checked" if pex_d['ictype' ] =="pcf8575"  else ""}>
                         <label for="pcf8575">pcf8575 (16bit)  ---->  Future use, this setting is ignored for now.</label></td>
             </tr>
         </table>
@@ -79,7 +79,7 @@ $var page: pcf857x
                     <tr>
                         <td class="BoardID">${bid + 1}</td>
                         <td class="command">                         
-                            <input type="text" size="10" value="${commands['adr'][bid] if bid < len(commands['adr']) else ''}" id="con${bid}" name="con${bid}">
+                            <input type="text" size="10" value="${pex_d['adr'][bid] if bid < len(pex_d['adr']) else ''}" id="con${bid}" name="con${bid}">
                         </td>                       
                     </tr>
         </table>
@@ -87,7 +87,7 @@ $var page: pcf857x
             $for bid in range(gv.sd['nbrd']):
             	<input type="hidden" id="i${bid}" name="i${bid}"/>
         
-        <input type="checkbox" name="debug" id="debug" ${"checked" if commands['debug' ] =="1" else ""}>
+        <input type="checkbox" name="debug" id="debug" ${"checked" if pex_d['debug' ] =="1" else ""}>
         <label for="debug">log extended information</label>
         
     </form>
@@ -109,10 +109,10 @@ $var page: pcf857x
     
     <form id="clicscan" name="clicscan" action="/pcf857x_scan" method="GET">
         
-        $if len(commands['devices'])>0:
+        $if len(pex_d['devices'])>0:
             <h4>$_(u'Devices found')</h4>
             <table style= "border: 1px solid black" id=deviceresults>
-                $for i in commands['devices']:
+                $for i in pex_d['devices']:
                     <tr>
                         <td style= "border: 1px solid black">${hex(i)}</td>
                     </tr>
@@ -134,7 +134,7 @@ $var page: pcf857x
                     <input type="text" size="2" value="1" name="tst_smbus">
                 </td>
                 <td>
-                    <input type="text" size="4" value="${commands['adr'][0]}" name="tst_adres">
+                    <input type="text" size="4" value="${pex_d['adr'][0]}" name="tst_adres">
                 </td>
                 <td>
                     <input type="text" size="4" value="0x08" name="tst_value">
