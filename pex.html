@@ -26,18 +26,15 @@ $var page: pex
     });
 </script>
 
-<style>
-.columnName {
-    text-align: center;
-}
-</style>
+<style>.columnName { text-align: center; }</style>
+<style>.collapsetable { border-collapse: collapse; border: 3px solid blue; }</style>
 
 <div id="plugin">
 <!--     <div class="title">Command Line Control -->
 <!--     <button class="execute" id="docButton" type="button" >$_('Help')</button> -->
 <!--     </div> -->
     <div>
-    <div class="title">$_(u'PCF857x IO extender boards.') 
+    <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')
     <button class="execute" id="docButton" type="button">$_(u'Help')</button></div>
     
     $if u"warnmsg" in pex_d:
@@ -45,8 +42,10 @@ $var page: pex
             <p><h2>$pex_d['warnmsg']</h2></p>
     
     <br>
-    <p>Connect up to 64 (or 128) stations via multiple IO extender boards based on the pcf8574 (or pcf8575)</p>
-    <p>See help page for supported options or ask for support on the SIP forum</p>
+    <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
+    <p>Supported hardwre: pcf8574 (8 ports), pc8575 (16 ports), mcp2308 (8 ports), mcp23017 (16 ports).</p>
+    <p> The maximum number of devices (any combination) cannot exceed eight.</p>
+    <p>See help page for supported options or ask for support on the SIP forum.</p>
     <br>
     </div>
 
