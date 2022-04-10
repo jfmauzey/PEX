@@ -8,7 +8,7 @@ from __future__ import print_function
 import json
 
 import gv  # Get access to SIP's settings, gv = global variables
-from io_devices import Devices
+from .io_devices import Devices
 
 # import smbus required to control the io port hardware
 blockedPlugin = False # assume that the needed module is available
@@ -19,8 +19,6 @@ except ModuleNotFoundError:
         import smbus2 as smbus
     except ModuleNotFoundError:
         blockedPlugin = True  # missing smbus module
-
-pex_config = {}
 
 # smbus tool
 def i2c_scan(i2c_bus, start_addr = 0x08, end_addr = 0xF7):
@@ -37,19 +35,19 @@ def i2c_scan(i2c_bus, start_addr = 0x08, end_addr = 0xF7):
 class PEX():
 
     def __init__(self):
-        global pex_config
         try:
             self._number_of_stations = len(gv.srvals)
-            self.load_pex_config()
-            self._dev_configs = pex_config['dev_configs']  # list of preconfigured device(s)
+            self.pex_c = self.load_pex_config()
+            self._dev_configs = self.pex_c['dev_configs']  # list of preconfigured device(s)
             self._discovered_devices = []
-            self._debug = pex_config['debug']
+            self._debug = self.pex_c['debug']
         except (TypeError, KeyError) as e:
-            self._pex_config = self.create_default_config()
-            self._dev_configs = self._pex_config[u"dev_configs"]
-            self._debug = True
             print(u'ERROR: PEX bad or missing hardware config')
+            print(u'       PEX will create default config')
             print(e)
+            self.pex_c = self.create_default_config()
+            self._dev_configs = self.pex_c[u"dev_configs"]
+            self._debug = True
 
     def create_default_config(self):
         return {u"pex_status": u"unconfigured",
@@ -71,15 +69,14 @@ class PEX():
 
         # Read in the pex config for this plugin from it's JSON file
     def load_pex_config(self):
-        global pex_config
         try:
             with open(u"./data/pex_config.json", u"r") as f:
                 pex_config = json.load(f)  # Read the pex_config from file
-        except IOError:  # If file does not exist create file with defaults.
+        except IOError:  # If file does not exist or is broken create file with defaults.
             pex_config = self.create_default_config()
             with open(u"./data/pex_config.json", u"w") as f:
                 json.dump(pex_config, f, indent=4)
-        return
+        return pex_config
 
 
     def scan_for_ioextenders(self, bus_id):
@@ -112,11 +109,10 @@ class PEX():
 
     def set_output(self, conf):
         'Maps the SIP Station Values to the configured hardware port(s).'
-        global pex_config
         if self.has_config_changed(conf):
             print(u"ERROR: PEX configuration changed. Need to reconfigure.")
             return
-        elif pex_config['pex_status'] != "run":
+        elif self.pex_config['pex_status'] != "run":
             print(u'ERROR: PEX not in "run" mode. Need to reconfigure.')
             return
 

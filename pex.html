@@ -57,14 +57,14 @@ $var page: pex
         <table id="optionList">
             <tr>
                 <td style='text-transform: none;'>$_(u'SMBus id:')</td> 
-                <td><input type="number" min="0" max="1" name="bus" value="${pex_d['bus']}"> (usually 1)</td>
+                <td><input type="number" min="0" max="1" name="bus" value="${pex_d['default_smbus']}"> (usually 1)</td>
             </tr>
             <tr><td colspan="2"><hr></td></tr>
             <tr>
                 <td style='text-transform: none;'>$_(u'IC Type: '):</td>
-                <td><input type="radio" id="pcf8574" name="ictype" value="pcf8574" ${"checked" if pex_d['ictype' ] =="pcf8574"  else ""}>
+                <td><input type="radio" id="pcf8574" name="ictype" value="pcf8574" ${"checked" if pex_d['ic_type' ] =="pcf8574"  else ""}>
                     <label for="pcf8574">pcf8574 (8bit)</label></td>
-                    <td><input type="radio" id="pcf8575" name="ictype" value="pcf8575" ${"checked" if pex_d['ictype' ] =="pcf8575"  else ""}>
+                    <td><input type="radio" id="pcf8575" name="ictype" value="pcf8575" ${"checked" if pex_d['ic_type' ] =="pcf8575"  else ""}>
                         <label for="pcf8575">pcf8575 (16bit)  ---->  Future use, this setting is ignored for now.</label></td>
             </tr>
         </table>
@@ -78,7 +78,7 @@ $var page: pex
                     <tr>
                         <td class="BoardID">${bid + 1}</td>
                         <td class="command">                         
-                            <input type="text" size="10" value="${pex_d['adr'][bid] if bid < len(pex_d['adr']) else ''}" id="con${bid}" name="con${bid}">
+                            <input type="text" size="10" value="${pex_d['dev_configs'][bid]['hw_addr'] if bid < len(pex_d['dev_configs']) else ''}" id="con${bid}" name="con${bid}">
                         </td>                       
                     </tr>
         </table>
@@ -108,10 +108,10 @@ $var page: pex
     
     <form id="clicscan" name="clicscan" action="/pex_scan" method="GET">
         
-        $if len(pex_d['devices'])>0:
+        $if len(pex_d['discovered_devices'])>0:
             <h4>$_(u'Devices found')</h4>
             <table style= "border: 1px solid black" id=deviceresults>
-                $for i in pex_d['devices']:
+                $for i in pex_d['discovered_devices']:
                     <tr>
                         <td style= "border: 1px solid black">${hex(i)}</td>
                     </tr>
@@ -133,7 +133,7 @@ $var page: pex
                     <input type="text" size="2" value="1" name="tst_smbus">
                 </td>
                 <td>
-                    <input type="text" size="4" value="${pex_d['adr'][0]}" name="tst_adres">
+                    <input type="text" size="4" value="${pex_d['dev_configs'][0]['hw_addr']}" name="tst_adres">
                 </td>
                 <td>
                     <input type="text" size="4" value="0x08" name="tst_value">

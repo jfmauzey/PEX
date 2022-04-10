@@ -9,9 +9,9 @@ import subprocess
 from sys import modules
 import time
 import platform
+from port_extender.port_extender import PEX
 
-
-#import smbus
+# import smbus
 SMBus_avail = False
 try:
     import smbus
@@ -44,38 +44,27 @@ urls.extend(
         u"/pex_scan", u"plugins.pex.scan"
     ]
 )
-# fmt: on
 
 # Add this plugin to the plugins menu
 gv.plugin_menu.append([u"pex", u"/pex"])
 
-pex_c = {}
-#prior = [0] * len(gv.srvals)
 demo_mode = True
 
 if platform.machine() == "armv6l"  or platform.machine() == "armv7l":  # may be removed later but makes dev and testing possible without smbus
     demo_mode = False
 
+pex = PEX()
 
 # Read in the pex config for this plugin from it's JSON file
-def load_pex_c():
-    global pex_c
-    try:
-        with open(u"./data/pex.json", u"r") as f:
-            pex_c = json.load(f)  # Read the pex_config from file
-    except IOError:  #  If file does not exist create file with defaults.
-        pex_c = {u"adr": [u""] * gv.sd[u"nbrd"], u"bus": 1, u"ictype":"pcf8574",u"debug":"0"}
-        pex_c[u"adr"][0] = u"0x20"
-        with open(u"./data/pex.json", u"w") as f:
-            json.dump(pex_c, f, indent=4)
-    return
+pex_c = pex.pex_c
 
+i2c_bus_id = int(pex_c[u"default_smbus"])
+io_extender_boards = pex.scan_for_ioextenders(i2c_bus_id)
 
-load_pex_c()
 # disable gpio_pins. We can discuss later if a mix of gpio and i2c should be possible
 gv.use_gpio_pins = False
 
-pex_c[u"devices"] = {}
+pex_c[u"discovered_devices"] = []
 
 if not SMBus_avail:
     pex_c[u"warnmsg"] = "Unable to load library. please follow instructions on the help page"
@@ -87,7 +76,7 @@ else:
 
 # for future use. No test devices available at the moment.
 modbits=8   # default number op io pins on i2c module
-if (pex_c[u"ictype"]=="pcf8575"):
+if (pex_c[u"ic_type"]=="pcf8575"):
     modbits=16
 
 
@@ -98,15 +87,15 @@ def on_zone_change(name, **kw):
         print("pex plugin blocked due to missing library")
         return
 
-    if len(pex_c[u"adr"]) != gv.sd[u"nbrd"]:
+    if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:
         print("pex plugin blocked due to incomplete settings")
         return
 
     if demo_mode==False:
-        bus = smbus.SMBus(int(pex_c[u"bus"]))
+        bus = smbus.SMBus(int(pex_c[u"default_smbus"]))
 
     i2c_bytes = []
-    
+
     for b in range(gv.sd[u"nbrd"]):
         byte = 0xFF
         for s in range(8): # for each virtual board
@@ -116,18 +105,20 @@ def on_zone_change(name, **kw):
         #print("adding byte: ", hex(byte))
         i2c_bytes.append(byte)
 
+    # jfm HERE
+    # assumes that the number of boards is equal to number of configured io extenders
     for s in range(gv.sd[u"nbrd"]):
         if demo_mode:
-            print("demo: bus.write_byte_data(" + pex_c[u"adr"][s] + ",0," + hex(i2c_bytes[s]) + ")" )
-            print("demo: bus.write_byte(" + pex_c[u"adr"][s] + "," + hex(i2c_bytes[s]) + ")" )
-            print("demo: bus.write_byte(" + str(int(pex_c[u"adr"][s],16)) + "," + hex(i2c_bytes[s]) + ")" )
+            print("demo: bus.write_byte_data(" + pex_c[u"dev_configs"][s][u"hw_addr"] + ",0," + hex(i2c_bytes[s]) + ")" )
+            print("demo: bus.write_byte(" + pex_c[u"dev_configs"][s][u"hw_addr"] + "," + hex(i2c_bytes[s]) + ")" )
+            print("demo: bus.write_byte(" + str(int(pex_c[u"dev_configs"][s][u"hw_addr"],16)) + "," + hex(i2c_bytes[s]) + ")" )
         else:
             # the real stuff here
             try:
                 if pex_c[u"debug"]=="1":
-                  print("bus.write_byte(" + str(int(pex_c[u"adr"][s],16)) + "," + hex(i2c_bytes[s]) + ")" )
+                  print("bus.write_byte(" + str(int(pex_c[u"dev_configs"][s][u"hw_adr"],16)) + "," + hex(i2c_bytes[s]) + ")" )
 
-                bus.write_byte(int(pex_c[u"adr"][s],16) , i2c_bytes[s])
+                bus.write_byte(int(pex_c[u"dev_configs"][s][u"hw_addr"], 16), i2c_bytes[s])
             except ValueError:
                 print("ValueError: have you any i2c device configured?")
                 pass
@@ -147,7 +138,7 @@ zones.connect(on_zone_change)
 
 
 class settings(ProtectedPage):
-    """Load an html page for entering pex_c"""
+    """Load an html page for entering PEX"""
 
     def GET(self):
         pex_c[u"devices"] = []
@@ -174,25 +165,27 @@ class update(ProtectedPage):
         if u"warnmsg" in pex_c:   # don't save temporary data
             del pex_c[u"warnmsg"]
 
+        # jfm HERE
+        # assumes that number of SIP configured boards is equal to the number of io extenders
         if (
-            len(pex_c[u"adr"]) != gv.sd[u"nbrd"]
+            len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]
         ):  #  if number of boards has changed, adjust length of adr lists
-            if gv.sd[u"nbrd"] > len(pex_c[u"adr"]):
-                increase = [""] * (gv.sd[u"nbrd"] - len(pex_c[u"adr"]))
-                pex_c[u"adr"].extend(increase)
-            elif gv.sd[u"nbrd"] < len(pex_c[u"adr"]):
-                pex_c[u"adr"] = pex_c[u"adr"][: gv.sd[u"nbrd"]]
+            if gv.sd[u"nbrd"] > len(pex_c[u"dev_configs"]):
+                increase = [""] * (gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"]))
+                pex_c[u"dev_configs"].extend(increase)
+            elif gv.sd[u"nbrd"] < len(pex_c[u"dev_configs"]):
+                pex_c[u"dev_configs"] = pex_c[u"dev_configs"][: gv.sd[u"nbrd"]]
         for i in range(gv.sd[u"nbrd"]):
-            pex_c[u"adr"][i] = qdict[u"con" + str(i)]
+            pex_c[u"dev_configs"][i] = qdict[u"con" + str(i)]
         if u"bus" in qdict:
-            pex_c[u"bus"] = qdict[u"bus"]
+            pex_c[u"default_smbus"] = qdict[u"bus"]
         else:
-            pex_c[u"bus"] = 1
+            pex_c["default_smus"] = 1
 
         if u"ictype" in qdict:
-            pex_c[u"ictype"] = qdict[u"ictype"]
+            pex_c[u"ic_type"] = qdict[u"ictype"]
         else:
-            pex_c[u"ictype"] = "pcf8574"
+            pex_c[u"ic_type"] = "pcf8574"
 
         if u"debug" in qdict: 
             if qdict[u"debug"]=="on":
@@ -202,7 +195,7 @@ class update(ProtectedPage):
         else:
             pex_c[u"debug"] = "0"
 
-        with open(u"./data/pex.json", u"w") as f:  # write the settings to file
+        with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
             json.dump(pex_c, f, indent=4)
         raise web.seeother(u"/restart")
 
@@ -233,19 +226,6 @@ class test(ProtectedPage):
 
 
 
-def getDevicesOnBus(busNo):
-    devices = []
-    bus = smbus.SMBus(busNo)
-    for addr in range(3, 178):
-        try:
-            bus.write_quick(addr)
-            devices += [addr]
-        except IOError:
-            pass
-    return devices
-
-
-
 class scan(ProtectedPage):
     """
     i2c scan page
@@ -258,6 +238,6 @@ class scan(ProtectedPage):
         if demo_mode:
             pex_c[u"devices"] = [0x27,0x25,0x20]
         else:
-            pex_c[u"devices"] = getDevicesOnBus(int(pex_c[u"bus"]))
+            pex_c[u"discovered_devices"] =  pex.scan_for_ioextenders(pex_c[u"default_smbus"])
         return template_render.pex(pex_c)
 
