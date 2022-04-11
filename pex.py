@@ -141,7 +141,7 @@ class settings(ProtectedPage):
     """Load an html page for entering PEX"""
 
     def GET(self):
-        pex_c[u"devices"] = []
+        pex_c[u"discovered_devices"] = []
         return template_render.pex(pex_c)
 
 
@@ -160,8 +160,8 @@ class update(ProtectedPage):
     def GET(self):
         global pex_c
         qdict = web.input()
-        if u"devices" in pex_c:   # don't save temporary data
-            del pex_c[u"devices"]
+        if u"discovered_devices" in pex_c:   # don't save temporary data
+            del pex_c[u"discovered_devices"]
         if u"warnmsg" in pex_c:   # don't save temporary data
             del pex_c[u"warnmsg"]
 
@@ -236,7 +236,7 @@ class scan(ProtectedPage):
         global demo_mode
         #data = web.input()
         if demo_mode:
-            pex_c[u"devices"] = [0x27,0x25,0x20]
+            pex_c[u"discovered_devices"] = [0x27,0x25,0x20]
         else:
             pex_c[u"discovered_devices"] =  pex.scan_for_ioextenders(pex_c[u"default_smbus"])
         return template_render.pex(pex_c)

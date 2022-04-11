@@ -54,14 +54,13 @@ class PEX():
                    u"warnmsg": '',
              u"default_smbus": 1,
                u"dev_configs": [{u"bus_id": 1,
-                                u"hw_addr": 0x23,
-                                   u"size": 16,
+                                u"hw_addr": 0x24,
+                                   u"size": 8,
                                    u'first': 0,
                                     u'last': 0,
-                                 u"ic_type": "mcp23017"
+                                 u"ic_type": "pcf8574"
                                }],
                 u"discovered_devices": [],
-                u"dev_adr": [0x20],  # for testing pex_conf integration
                 u"supported_hardware": ['pcf8574', 'pcf8575', 'mcp2308', 'mcp23017'],
                 u"ic_type": 'pcf8575',
                 u"debug": "0"

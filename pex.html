@@ -1,4 +1,4 @@
-$def with(pex_d)
+$def with(pex_c)
 
 $var title: $_(u'SIP PEX Plugin')
 $var page: pex
@@ -37,9 +37,9 @@ $var page: pex
     <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')
     <button class="execute" id="docButton" type="button">$_(u'Help')</button></div>
     
-    $if u"warnmsg" in pex_d:
-        $if len(pex_d['warnmsg'])>0:
-            <p><h2>$pex_d['warnmsg']</h2></p>
+    $if u"warnmsg" in pex_c:
+        $if len(pex_c['warnmsg'])>0:
+            <p><h2>$pex_c['warnmsg']</h2></p>
     
     <br>
     <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
@@ -49,7 +49,6 @@ $var page: pex
     <br>
     </div>
 
-</script>
 <div id="stations">
     <div class="title">$_(u'Settings')</div>
     <form id="clic" name="clic" action="/pexu" method="get">
@@ -57,14 +56,14 @@ $var page: pex
         <table id="optionList">
             <tr>
                 <td style='text-transform: none;'>$_(u'SMBus id:')</td> 
-                <td><input type="number" min="0" max="1" name="bus" value="${pex_d['default_smbus']}"> (usually 1)</td>
+                <td><input type="number" min="0" max="1" name="bus" value="${pex_c['default_smbus']}"> (usually 1)</td>
             </tr>
             <tr><td colspan="2"><hr></td></tr>
             <tr>
                 <td style='text-transform: none;'>$_(u'IC Type: '):</td>
-                <td><input type="radio" id="pcf8574" name="ictype" value="pcf8574" ${"checked" if pex_d['ic_type' ] =="pcf8574"  else ""}>
+                <td><input type="radio" id="pcf8574" name="ictype" value="pcf8574" ${"checked" if pex_c['ic_type' ] =="pcf8574"  else ""}>
                     <label for="pcf8574">pcf8574 (8bit)</label></td>
-                    <td><input type="radio" id="pcf8575" name="ictype" value="pcf8575" ${"checked" if pex_d['ic_type' ] =="pcf8575"  else ""}>
+                    <td><input type="radio" id="pcf8575" name="ictype" value="pcf8575" ${"checked" if pex_c['ic_type' ] =="pcf8575"  else ""}>
                         <label for="pcf8575">pcf8575 (16bit)  ---->  Future use, this setting is ignored for now.</label></td>
             </tr>
         </table>
@@ -78,7 +77,7 @@ $var page: pex
                     <tr>
                         <td class="BoardID">${bid + 1}</td>
                         <td class="command">                         
-                            <input type="text" size="10" value="${pex_d['dev_configs'][bid]['hw_addr'] if bid < len(pex_d['dev_configs']) else ''}" id="con${bid}" name="con${bid}">
+                            <input type="text" size="10" value="${hex(pex_c['dev_configs'][bid]['hw_addr']) if bid < len(pex_c['dev_configs']) else ''}" id="con${bid}" name="con${bid}">
                         </td>                       
                     </tr>
         </table>
@@ -86,7 +85,7 @@ $var page: pex
             $for bid in range(gv.sd['nbrd']):
             	<input type="hidden" id="i${bid}" name="i${bid}"/>
         
-        <input type="checkbox" name="debug" id="debug" ${"checked" if pex_d['debug' ] =="1" else ""}>
+        <input type="checkbox" name="debug" id="debug" ${"checked" if pex_c['debug' ] =="1" else ""}>
         <label for="debug">log extended information</label>
         
     </form>
@@ -108,10 +107,10 @@ $var page: pex
     
     <form id="clicscan" name="clicscan" action="/pex_scan" method="GET">
         
-        $if len(pex_d['discovered_devices'])>0:
+        $if len(pex_c['discovered_devices'])>0:
             <h4>$_(u'Devices found')</h4>
             <table style= "border: 1px solid black" id=deviceresults>
-                $for i in pex_d['discovered_devices']:
+                $for i in pex_c['discovered_devices']:
                     <tr>
                         <td style= "border: 1px solid black">${hex(i)}</td>
                     </tr>
@@ -133,7 +132,7 @@ $var page: pex
                     <input type="text" size="2" value="1" name="tst_smbus">
                 </td>
                 <td>
-                    <input type="text" size="4" value="${pex_d['dev_configs'][0]['hw_addr']}" name="tst_adres">
+                    <input type="text" size="4" value="${hex(pex_c['dev_configs'][0]['hw_addr'])}" name="tst_adres">
                 </td>
                 <td>
                     <input type="text" size="4" value="0x08" name="tst_value">
