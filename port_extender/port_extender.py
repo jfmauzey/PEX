@@ -47,12 +47,14 @@ class PEX():
             print(e)
             self.pex_c = self.create_default_config()
             self._dev_configs = self.pex_c[u"dev_configs"]
+            self._discovered_devices = []
             self._debug = True
 
     def create_default_device(self, bus_id=1, hw_addr=0x24, size=8, first=0, last=0):
         dev_conf = {}
         dev_conf[u"bus_id"] = bus_id
         dev_conf[u"hw_addr"] = hw_addr
+        dev_conf[u"ic_type"] = "pcf8574"
         dev_conf[u"size"] = size
         dev_conf[u"first"] = first
         dev_conf[u"last"] = last
@@ -62,9 +64,10 @@ class PEX():
         pex_conf = {}
         pex_conf[u"pex_status"] = u"unconfigured"
         pex_conf[u"warnmsg"] = ''
-        pex_conf[u"default_smbus"] = 1
         pex_conf[u"dev_configs"] = [self.create_default_device()]
         pex_conf[u"discovered_devices"] = []
+        pex_conf[u"num_configured_SIP_stations"] = 0
+        pex_conf[u"default_smbus"] = 1
         pex_conf[u"supported_hardware"] = [u'pcf8574', u'pcf8575', u'mcp2308', u'mcp23017']
         pex_conf[u"ic_type"] = u'pcf8575'
         pex_conf[u"debug"] = "0"

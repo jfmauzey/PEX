@@ -9,6 +9,8 @@ Requirements: I2C must be enabled on the Raspberry PI and smbus lib must be inst
 ##### List all plugin files below preceded by a blank line [file_name.ext path] relative to SIP directory #####
 
 pex.py plugins
+port_extender.py plugins/port_extender
+io_devices.py plugins/port_extender
 pex.html templates
 pex.json data (generated)
 pex_plugin.manifest plugins/manifests

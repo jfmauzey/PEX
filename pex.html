@@ -36,10 +36,11 @@ $var page: pex
     <div>
     <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')
     <button class="execute" id="docButton" type="button">$_(u'Help')</button></div>
-    
+
     $if u"warnmsg" in pex_c:
         $if len(pex_c['warnmsg'])>0:
-            <p><h2>$pex_c['warnmsg']</h2></p>
+            <p></p>
+            <h2>$pex_c['warnmsg']</h2>
     
     <br>
     <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
@@ -47,37 +48,74 @@ $var page: pex
     <p> The maximum number of devices (any combination) cannot exceed eight.</p>
     <p>See help page for supported options or ask for support on the SIP forum.</p>
     <br>
+
+    <h2>'Number of SIP Stations'</h2>
+
+    <div id="current_config">
+    <div class="title">$_(u'Port Extender -- Current Configuration')</div>
+        $if len(pex_c['dev_configs']):
+            <table class="collapsetable" border="1">
+                <tr>
+                    <th>$_(u'Port ID')</th>
+                    <th>$_(u'SMBus')</th>
+                    <th>$_(u'Port Addr')</th>
+                    <th>$_(u'IC Type')</th>
+                    <th>$_(u'SIP Station Span')</th>
+                </tr>
+                $for port_id in range(0,len(pex_c['dev_configs'])):
+                    <tr>
+                        <td style="text-align: center">${port_id+1}</td>
+                        <td style="text-align: center">${pex_c['dev_configs'][port_id]['bus_id']}</td>
+                        <td style="text-align: center">${hex(int(pex_c['dev_configs'][port_id]['hw_addr'], 16))}</td>
+                        <td style="text-align: center">${pex_c['dev_configs'][port_id]['ic_type']}</td>
+                        <td style="text-align: center">$_(u'Station Span')</td>
+                    </tr>
+            </table>
+        $else:
+            <table class="collapsetable" border="1">
+                <tr>
+                    <td>$_(u"No previously configured devices.")</td>
+                </tr>
+            </table>
+    <br>
+    </div>
     </div>
 
-<div id="stations">
-    <div class="title">$_(u'Settings')</div>
-    <form id="clic" name="clic" action="/pexu" method="get">
+    <br><hr>
+
+    <div id="edit_config">
+    <div class="title">$_(u'Edit Port Extender Device Configuration')</div>
+    <form id="clic" name="clic" action="/pcf857xu" method="get">
         
         <table id="optionList">
             <tr>
-                <td style='text-transform: none;'>$_(u'SMBus id:')</td> 
-                <td><input type="number" min="0" max="1" name="bus" value="${pex_c['default_smbus']}"> (usually 1)</td>
+                <td style='text-transform: none;'>$_(u'SMBus id:')</td>
+                <td><input type="number" min="0" max="1" name="default_smbus" value="${pex_c['default_smbus']}"> (usually 1)</td>
             </tr>
-            <tr><td colspan="2"><hr></td></tr>
+            <tr><td colspan="4"><hr></td></tr>
             <tr>
                 <td style='text-transform: none;'>$_(u'IC Type: '):</td>
-                <td><input type="radio" id="pcf8574" name="ictype" value="pcf8574" ${"checked" if pex_c['ic_type' ] =="pcf8574"  else ""}>
+                <td><input type="radio" id="pcf8574" name="ic_type" value="pcf8574" ${"checked" if pex_c['ic_type' ] =="pcf8574"  else ""}>
                     <label for="pcf8574">pcf8574 (8bit)</label></td>
-                    <td><input type="radio" id="pcf8575" name="ictype" value="pcf8575" ${"checked" if pex_c['ic_type' ] =="pcf8575"  else ""}>
-                        <label for="pcf8575">pcf8575 (16bit)  ---->  Future use, this setting is ignored for now.</label></td>
+                <td><input type="radio" id="pcf8575" name="ic_type" value="pcf8575" ${"checked" if pex_c['ic_type' ] =="pcf8575"  else ""}>
+                    <label for="pcf8575">pcf8575 (16bit)</label></td>
+                <td><input type="radio" id="mcp2308" name="ic_type" value="mcp2308" ${"checked" if pex_c['ic_type' ] =="mcp2308"  else ""}>
+                    <label for="mcp2308">mcp2308 (8bit)</label></td>
+                <td><input type="radio" id="mcp23017" name="ic_type" value="mcp23017" ${"checked" if pex_c['ic_type' ] =="mcp23017"  else ""}>
+                    <label for="mcp23017">mcp23017 (16bit)</label></td>
             </tr>
         </table>
         <hr>
         <table>
             <tr>
-                <th class="stationNumber">$_(u'Board')</th>
-                <th class="columnName">$_(u'0xAdr')</th>
+                <th class="stationNumber">$_(u'Port')</th>
+                <th class="columnName">$_(u'0xAddr')</th>
             </tr>
             $for bid in range(0,gv.sd['nbrd']):
                     <tr>
                         <td class="BoardID">${bid + 1}</td>
-                        <td class="command">                         
-                            <input type="text" size="10" value="${hex(pex_c['dev_configs'][bid]['hw_addr']) if bid < len(pex_c['dev_configs']) else ''}" id="con${bid}" name="con${bid}">
+                        <td class="command">
+                            <input type="text" size="10" value="${hex(int(pex_c['dev_configs'][bid]['hw_addr'],16)) if bid < len(pex_c['dev_configs']) else ''}" id="con${bid}" name="con${bid}">
                         </td>                       
                     </tr>
         </table>
@@ -90,8 +128,10 @@ $var page: pex
         
     </form>
             <p></p>
-</div>
+    </div>
 <div class="controls">
+    <button id="cNew_Device" class="New_Device"><b>$_(u'New_Device')</b></button>
+    <button id="cDel_Device" class="Del_Device"><b>$_(u'Del_Device')</b></button>
     <button id="cSubmit" class="submit"><b>$_(u'Submit')</b></button>
     <button id="cCancel" class="cancel danger">$_(u'Cancel')</button>
 </div>
@@ -105,34 +145,34 @@ $var page: pex
         <button id="cSubmitscan" class="submitscan"><b>$_(u'Scan devices')</b></button>
     </div>
     
-    <form id="clicscan" name="clicscan" action="/pex_scan" method="GET">
+    <form id="clicscan" name="clicscan" action="/pcf857x_scan" method="GET">
         
         $if len(pex_c['discovered_devices'])>0:
             <h4>$_(u'Devices found')</h4>
-            <table style= "border: 1px solid black" id=deviceresults>
-                $for i in pex_c['discovered_devices']:
-                    <tr>
-                        <td style= "border: 1px solid black">${hex(i)}</td>
-                    </tr>
+            <table class="collapsetable" border="1" id=deviceresults>
+                <tr>
+                    $for i in pex_c['discovered_devices']:
+                        <td style="padding:3px">${hex(int(i))}</td>
+                </tr>
             </table>
         $else:
             <input type="hidden" id="scanme" name="scanme" value="true"/>
     </form>
     <br>
     <div class="title">$_(u'Advanced (i2c) tools')</div> see helppage
-    <form id="clict" name="clict" action="/pext" method="POST">
+    <form id="clict" name="clict" action="/pcf857xt" method="POST">
         <table id="smbusCommand">
             <tr>
                 <td>smbus</td>
-                <td>0xadr</td>
-                <td>0xdata</td>
+                <td>0xAddr</td>
+                <td>0xData</td>
             </tr>
             <tr>
                 <td>
                     <input type="text" size="2" value="1" name="tst_smbus">
                 </td>
                 <td>
-                    <input type="text" size="4" value="${hex(pex_c['dev_configs'][0]['hw_addr'])}" name="tst_adres">
+                    <input type="text" size="4" value="${hex(int(pex_c['discovered_devices'][0])) if len(pex_c['discovered_devices']) else 'None!'}" name="tst_addr">
                 </td>
                 <td>
                     <input type="text" size="4" value="0x08" name="tst_value">
@@ -148,8 +188,7 @@ $var page: pex
     <button id="cSubmitt" class="submitt"><b>$_(u'Set')</b></button>
 </div>
 
-<p>
-</p>
+<p></p>
 
 <p></p>
 

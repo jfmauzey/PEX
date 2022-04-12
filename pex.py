@@ -8,6 +8,14 @@ import json
 import platform
 from port_extender.port_extender import PEX
 
+# local module imports
+from blinker import signal
+import gv  # Get access to SIP's settings, gv = global variables
+from sip import template_render
+from urls import urls  # Get access to SIP's URLs
+import web
+from webpages import ProtectedPage
+
 # import smbus
 SMBus_avail = False
 try:
@@ -20,15 +28,6 @@ except ModuleNotFoundError:
     except ModuleNotFoundError:
         pass
 
-
-
-# local module imports
-from blinker import signal
-import gv  # Get access to SIP's settings, gv = global variables
-from sip import template_render
-from urls import urls  # Get access to SIP's URLs
-import web
-from webpages import ProtectedPage
 
 # Add a new url to open the data entry page.
 # fmt: off
@@ -50,11 +49,14 @@ demo_mode = True
 if platform.machine() == "armv6l"  or platform.machine() == "armv7l":  # may be removed later but makes dev and testing possible without smbus
     demo_mode = False
 
-# load/create pex config from permanent storage
+# load/create pex config using json permanent storage
 pex = PEX()
 
+# pex_c contains the configuration for the hardware and the configuration of the PEX controller.
+#       Also works like a shared memory to exchange PEX UI data display and update.
 pex_c = pex.pex_c
 
+# jfm HERE do we still need i2c_bus_id?
 i2c_bus_id = int(pex_c[u"default_smbus"])
 io_extender_boards = pex.scan_for_ioextenders(i2c_bus_id)
 
@@ -135,11 +137,11 @@ class update(ProtectedPage):
             if gv.sd[u"nbrd"] > len(pex_c[u"dev_configs"]):
                 increase = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
                 for i in range(increase):
-                    pex_c[u"dev_conigs"].append(pex.create_default_device())
+                    pex_c[u"dev_configs"].append(pex.create_default_device())
             elif gv.sd[u"nbrd"] < len(pex_c[u"dev_configs"]):
                 pex_c[u"dev_configs"] = pex_c[u"dev_configs"][: gv.sd[u"nbrd"]]
         for i in range(gv.sd[u"nbrd"]):
-            pex_c[u"dev_configs"][i] = qdict[u"con" + str(i)]
+            pex_c[u"dev_configs"][i][u"hw_addr"] = qdict[u"con" + str(i)]
         if u"bus" in qdict:
             pex_c[u"default_smbus"] = qdict[u"bus"]
         else:
@@ -202,6 +204,6 @@ class scan(ProtectedPage):
         if demo_mode:
             pex_c[u"discovered_devices"] = [0x27,0x25,0x20]
         else:
-            pex_c[u"discovered_devices"] =  pex.scan_for_ioextenders(pex_c[u"default_smbus"])
+            pex_c[u"discovered_devices"] = pex.scan_for_ioextenders(pex_c[u"default_smbus"])
         return template_render.pex(pex_c)
 
