@@ -49,34 +49,43 @@ class PEX():
             self._dev_configs = self.pex_c[u"dev_configs"]
             self._debug = True
 
-    def create_default_config(self):
-        return {u"pex_status": u"unconfigured",
-                   u"warnmsg": '',
-             u"default_smbus": 1,
-               u"dev_configs": [{u"bus_id": 1,
-                                u"hw_addr": 0x24,
-                                   u"size": 8,
-                                   u'first': 0,
-                                    u'last': 0,
-                                 u"ic_type": "pcf8574"
-                               }],
-                u"discovered_devices": [],
-                u"supported_hardware": ['pcf8574', 'pcf8575', 'mcp2308', 'mcp23017'],
-                u"ic_type": 'pcf8575',
-                u"debug": "0"
-        }
+    def create_default_device(self, bus_id=1, hw_addr=0x24, size=8, first=0, last=0):
+        dev_conf = {}
+        dev_conf[u"bus_id"] = bus_id
+        dev_conf[u"hw_addr"] = hw_addr
+        dev_conf[u"size"] = size
+        dev_conf[u"first"] = first
+        dev_conf[u"last"] = last
+        return dev_conf
 
-        # Read in the pex config for this plugin from it's JSON file
+    def create_default_config(self):
+        pex_conf = {}
+        pex_conf[u"pex_status"] = u"unconfigured"
+        pex_conf[u"warnmsg"] = ''
+        pex_conf[u"default_smbus"] = 1
+        pex_conf[u"dev_configs"] = [self.create_default_device()]
+        pex_conf[u"discovered_devices"] = []
+        pex_conf[u"supported_hardware"] = [u'pcf8574', u'pcf8575', u'mcp2308', u'mcp23017']
+        pex_conf[u"ic_type"] = u'pcf8575'
+        pex_conf[u"debug"] = "0"
+        return pex_conf
+
+    # Read in the pex config for this plugin from it's JSON file
     def load_pex_config(self):
         try:
             with open(u"./data/pex_config.json", u"r") as f:
                 pex_config = json.load(f)  # Read the pex_config from file
         except IOError:  # If file does not exist or is broken create file with defaults.
             pex_config = self.create_default_config()
-            with open(u"./data/pex_config.json", u"w") as f:
-                json.dump(pex_config, f, indent=4)
+            self.save_pex_config(pex_config)
         return pex_config
 
+    # Save the pex config for this plugin to it's JSON file
+    def save_pex_config(self, pex_c):
+        # jfm HERE
+        # need to validate config before saving
+        with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
+            json.dump(pex_c, f, indent=4)
 
     def scan_for_ioextenders(self, bus_id):
         'Scan well known bus address range for supported hardware port extenders.'
@@ -111,7 +120,7 @@ class PEX():
         if self.has_config_changed(conf):
             print(u"ERROR: PEX configuration changed. Need to reconfigure.")
             return
-        elif self.pex_config['pex_status'] != "run":
+        elif self.pex_c['pex_status'] != "run":
             print(u'ERROR: PEX not in "run" mode. Need to reconfigure.')
             return
 
