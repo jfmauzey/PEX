@@ -53,17 +53,11 @@ if platform.machine() == "armv6l"  or platform.machine() == "armv7l":  # may be 
 pex = PEX()
 
 # pex_c contains the configuration for the hardware and the configuration of the PEX controller.
-#       Also works like a shared memory to exchange PEX UI data display and update.
+#       Also works like a shared memory to exchange PEX UI display and update data.
 pex_c = pex.pex_c
-
-# jfm HERE do we still need i2c_bus_id?
-i2c_bus_id = int(pex_c[u"default_smbus"])
-io_extender_boards = pex.scan_for_ioextenders(i2c_bus_id)
 
 # disable gpio_pins. We can discuss later if a mix of gpio and i2c should be possible
 gv.use_gpio_pins = False
-
-pex_c[u"discovered_devices"] = []
 
 if not SMBus_avail:
     pex_c[u"warnmsg"] = "Unable to load library. please follow instructions on the help page"
@@ -84,16 +78,16 @@ def on_zone_change(name, **kw):
     """ Send command when core program signals a change in station state."""
 
     if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:
-        print("pex plugin blocked due to incomplete settings")
+        print(u"pex plugin blocked due to incomplete configuration.")
+        pex_c[u"warnmsg"] = "ERROR: Failure to set outputs. PEX needs to be configured."
         return
-
-    if demo_mode:
-        print("demo: bus.write_byte_data(srvals")
-    else:
+    try:
         pex.set_output(pex_c)
-
-            
-
+    except Exception as e:
+        print(u"ERROR: PEX failed to set output.")
+        print(repr(e))
+        pex_c[u"warnmsg"] = "ERROR: Failure to set outputs. PEX needs to be configured."
+        print("Debug: PEX that's ALL Folks.")
 
 zones = signal(u"zone_change")
 zones.connect(on_zone_change)
@@ -107,7 +101,7 @@ class settings(ProtectedPage):
     """Load an html page for entering PEX"""
 
     def GET(self):
-        pex_c[u"discovered_devices"] = []
+        pex_c[u"discovered_devices"] = pex.scan_for_ioextenders(pex_c[u"default_smbus"])
         return template_render.pex(pex_c)
 
 
@@ -126,22 +120,11 @@ class update(ProtectedPage):
     def GET(self):
         global pex_c
         qdict = web.input()
-        if u"discovered_devices" in pex_c:   # don't save temporary data
-            del pex_c[u"discovered_devices"]
         if u"warnmsg" in pex_c:   # don't save temporary data
             del pex_c[u"warnmsg"]
 
         # jfm HERE
         # assumes that number of SIP configured boards is equal to the number of io extenders
-        if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:  #  check if config changed
-            if gv.sd[u"nbrd"] > len(pex_c[u"dev_configs"]):
-                increase = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
-                for i in range(increase):
-                    pex_c[u"dev_configs"].append(pex.create_default_device())
-            elif gv.sd[u"nbrd"] < len(pex_c[u"dev_configs"]):
-                pex_c[u"dev_configs"] = pex_c[u"dev_configs"][: gv.sd[u"nbrd"]]
-        for i in range(gv.sd[u"nbrd"]):
-            pex_c[u"dev_configs"][i][u"hw_addr"] = qdict[u"con" + str(i)]
         if u"bus" in qdict:
             pex_c[u"default_smbus"] = qdict[u"bus"]
         else:
@@ -159,6 +142,17 @@ class update(ProtectedPage):
                 pex_c[u"debug"] = "0"
         else:
             pex_c[u"debug"] = "0"
+
+        if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:  #  check if config changed
+            if gv.sd[u"nbrd"] > len(pex_c[u"dev_configs"]):
+                increase = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
+                for i in range(increase):
+                    pex_c[u"dev_configs"].append(pex.create_default_device())
+            elif gv.sd[u"nbrd"] < len(pex_c[u"dev_configs"]):
+                decrease = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
+                pex_c[u"dev_configs"] = pex_c[u"dev_configs"][:decrease]
+        for i in range(gv.sd[u"nbrd"]):
+            pex_c[u"dev_configs"][i][u"hw_addr"] = qdict[u"con" + str(i)]
 
         # save changes to permanent storage
         pex.save_pex_config((pex_c))
@@ -182,10 +176,13 @@ class test(ProtectedPage):
         for k, v in data.items():
           print(k, v)
         if demo_mode:
-            print("demo: bus.write_byte(" + data["tst_adres"] + "," + data["tst_value"] + ")" )
+            print("demo: bus.write_byte(" + data["tst_addr"] + "," + data["tst_value"] + ")" )
         else:
-            bus = smbus.SMBus(int(data["tst_smbus"]))
-            bus.write_byte(int(data["tst_adres"],16), int(data["tst_value"],16))
+            if SMBus_avail:
+                bus = smbus.SMBus(int(data["tst_smbus"]))
+                bus.write_byte(int(data["tst_addr"],16), int(data["tst_value"],16))
+            else:
+                print('Cannot test device due to missing library.')
 
         print("pct-post-test-end")
         web.seeother(u"/pex")

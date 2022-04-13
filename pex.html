@@ -85,7 +85,7 @@ $var page: pex
 
     <div id="edit_config">
     <div class="title">$_(u'Edit Port Extender Device Configuration')</div>
-    <form id="clic" name="clic" action="/pcf857xu" method="get">
+    <form id="clic" name="clic" action="/pexu" method="get">
         
         <table id="optionList">
             <tr>
@@ -145,7 +145,7 @@ $var page: pex
         <button id="cSubmitscan" class="submitscan"><b>$_(u'Scan devices')</b></button>
     </div>
     
-    <form id="clicscan" name="clicscan" action="/pcf857x_scan" method="GET">
+    <form id="clicscan" name="clicscan" action="/pex_scan" method="GET">
         
         $if len(pex_c['discovered_devices'])>0:
             <h4>$_(u'Devices found')</h4>
@@ -160,7 +160,7 @@ $var page: pex
     </form>
     <br>
     <div class="title">$_(u'Advanced (i2c) tools')</div> see helppage
-    <form id="clict" name="clict" action="/pcf857xt" method="POST">
+    <form id="clict" name="clict" action="/pext" method="POST">
         <table id="smbusCommand">
             <tr>
                 <td>smbus</td>
