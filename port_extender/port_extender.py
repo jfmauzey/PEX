@@ -37,7 +37,7 @@ class PEX():
     def __init__(self):
         try:
             self._number_of_stations = len(gv.srvals)
-            self.pex_c = self.load_pex_config()
+            self.pex_c = self.load_config()
             self._dev_configs = self.pex_c['dev_configs']  # list of preconfigured device(s)
             self._debug = self.pex_c['debug']
         except (TypeError, KeyError) as e:
@@ -75,17 +75,17 @@ class PEX():
         return pex_conf
 
     # Read in the pex config for this plugin from it's JSON file
-    def load_pex_config(self):
+    def load_config(self):
         try:
             with open(u"./data/pex_config.json", u"r") as f:
                 pex_config = json.load(f)  # Read the pex_config from file
         except IOError:  # If file does not exist or is broken create file with defaults.
             pex_config = self.create_default_config()
-            self.save_pex_config(pex_config)
+            self.save_config(pex_config)
         return pex_config
 
     # Save the pex config for this plugin to it's JSON file
-    def save_pex_config(self, pex_c):
+    def save_config(self, pex_c):
         # jfm HERE
         # need to validate config before saving
         with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file

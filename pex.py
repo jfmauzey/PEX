@@ -121,13 +121,16 @@ class update(ProtectedPage):
         global pex_c
         qdict = web.input()
         if u"warnmsg" in pex_c:   # don't save temporary data
-            del pex_c[u"warnmsg"]
+            pex_c[u"warnmsg"] == ""
 
         if u"bus" in qdict:
             pex_c[u"default_smbus"] = qdict[u"bus"]
         else:
             pex_c["default_smus"] = 1
 
+        # Do we need ictype in the PEX configuration. It's used as a
+        # default value. Each device also has an ictype field that is
+        # used for the PEX span when mapping SIP stations to ports.
         if u"ictype" in qdict:
             pex_c[u"ic_type"] = qdict[u"ictype"]
         else:
@@ -159,8 +162,9 @@ class update(ProtectedPage):
 
         if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:  #  check if config changed
             pex_c[u"pex_status"] = u"unconfigured"
+
         # save changes to permanent storage
-        pex.save_pex_config((pex_c))
+        pex.save_config((pex_c))
 
         raise web.seeother(u"/restart")
 
