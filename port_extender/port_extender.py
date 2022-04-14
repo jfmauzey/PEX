@@ -11,14 +11,14 @@ import gv  # Get access to SIP's settings, gv = global variables
 from .io_devices import Devices
 
 # import smbus required to control the io port hardware
-blockedPlugin = False # assume that the needed module is available
+SMBus_avail = True  # assume that the needed module is available
 try:
     import smbus
 except ModuleNotFoundError:
     try:
         import smbus2 as smbus
     except ModuleNotFoundError:
-        blockedPlugin = True  # missing smbus module
+        SMBus_avail = False  # missing smbus module
 
 # smbus tool
 def i2c_scan(i2c_bus, start_addr = 0x08, end_addr = 0xF7):
@@ -39,7 +39,6 @@ class PEX():
             self._number_of_stations = len(gv.srvals)
             self.pex_c = self.load_pex_config()
             self._dev_configs = self.pex_c['dev_configs']  # list of preconfigured device(s)
-            self._discovered_devices = []
             self._debug = self.pex_c['debug']
         except (TypeError, KeyError) as e:
             print(u'ERROR: PEX bad or missing hardware config')
@@ -47,27 +46,29 @@ class PEX():
             print(e)
             self.pex_c = self.create_default_config()
             self._dev_configs = self.pex_c[u"dev_configs"]
-            self._discovered_devices = []
             self._debug = True
 
-    def create_default_device(self, bus_id=1, hw_addr=0x24, size=8, first=0, last=0):
+    def create_device(self, bus_id=1, hw_addr=u"0x24", ic_type=u"pcf8574", size=8, first=0, last=0):
+        """Creates device using default parameters if none are specified."""
         dev_conf = {}
         dev_conf[u"bus_id"] = bus_id
         dev_conf[u"hw_addr"] = hw_addr
-        dev_conf[u"ic_type"] = "pcf8574"
+        dev_conf[u"ic_type"] = ic_type
         dev_conf[u"size"] = size
-        dev_conf[u"first"] = first
-        dev_conf[u"last"] = last
+        dev_conf[u"first"] = first  # First SIP Station for this device
+        dev_conf[u"last"] = last  # Last SIP Station for this device
         return dev_conf
 
     def create_default_config(self):
         pex_conf = {}
+        default_smbus = 1
         pex_conf[u"pex_status"] = u"unconfigured"
         pex_conf[u"warnmsg"] = ''
-        pex_conf[u"dev_configs"] = [self.create_default_device()]
-        pex_conf[u"discovered_devices"] = []
+        pex_conf[u"num_SIP_stations"] = 0
+        pex_conf[u"dev_configs"] = [self.create_device()]
+        pex_conf[u"discovered_devices"] = self.scan_for_ioextenders(default_smbus)
         pex_conf[u"num_configured_SIP_stations"] = 0
-        pex_conf[u"default_smbus"] = 1
+        pex_conf[u"default_smbus"] = default_smbus
         pex_conf[u"supported_hardware"] = [u'pcf8574', u'pcf8575', u'mcp2308', u'mcp23017']
         pex_conf[u"ic_type"] = u'pcf8575'
         pex_conf[u"debug"] = "0"
@@ -95,8 +96,7 @@ class PEX():
         i2c_bus = smbus.SMBus(int(bus_id))
         i2c_start_addr = 0x20  # beginning i2c address for MCP23017 and pcf857x
         i2c_end_addr = 0x27  # last possible i2c address for MCP23017 and pcf857x
-        self._discovered_devices = i2c_scan(i2c_bus, i2c_start_addr, i2c_end_addr)
-        return self._discovered_devices
+        return i2c_scan(i2c_bus, i2c_start_addr, i2c_end_addr)
 
 
     def verify_device_handshake(self, bus_id, bus_addr: int):  # jfm static typing
@@ -104,7 +104,8 @@ class PEX():
         i2c_bus = smbus.SMBus(int(bus_id))
         i2c_start_addr = bus_addr  #  device to verify
         i2c_end_addr = bus_addr
-        return (i2c_scan(i2c_bus, i2c_start_addr, i2c_end_addr))
+        result = len(i2c_scan(i2c_bus, i2c_start_addr, i2c_end_addr)) != 0
+        return result
 
     def alter_SIP_gpio_behavior(self):
         'Disable SIP gpio shift register if Port Extender is configured to use smbus.'
@@ -132,7 +133,7 @@ class PEX():
         # Map the srvalues to the device(s). The order that the devices are
         # listed in the config are the order for mapping. The first device
         # maps the first DeviceSize (8 or 16) ports to Station_1 through
-        # Station_N (n=8 or 16).
+        # Station_N (N=8 or 16).
         st = 0  # start index in successive slices
         sr_len = len(gv.srvals)
         device_count = 0  # jfm for debug track which device is selected

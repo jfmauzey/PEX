@@ -123,8 +123,6 @@ class update(ProtectedPage):
         if u"warnmsg" in pex_c:   # don't save temporary data
             del pex_c[u"warnmsg"]
 
-        # jfm HERE
-        # assumes that number of SIP configured boards is equal to the number of io extenders
         if u"bus" in qdict:
             pex_c[u"default_smbus"] = qdict[u"bus"]
         else:
@@ -143,17 +141,24 @@ class update(ProtectedPage):
         else:
             pex_c[u"debug"] = "0"
 
-        if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:  #  check if config changed
-            if gv.sd[u"nbrd"] > len(pex_c[u"dev_configs"]):
-                increase = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
-                for i in range(increase):
-                    pex_c[u"dev_configs"].append(pex.create_default_device())
-            elif gv.sd[u"nbrd"] < len(pex_c[u"dev_configs"]):
-                decrease = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
-                pex_c[u"dev_configs"] = pex_c[u"dev_configs"][:decrease]
-        for i in range(gv.sd[u"nbrd"]):
-            pex_c[u"dev_configs"][i][u"hw_addr"] = qdict[u"con" + str(i)]
+        # jfm HERE
+        # assumes that number of SIP configured boards is equal to the number of io extenders
+        # Result is that the PEX device configuration is automatically created to match
+        # changes in the number of configured SIP stations. This code does not try to
+        # map the devices discovered by the smbus scan to the list of configured devices.
+        #if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:  #  check if config changed
+        #    if gv.sd[u"nbrd"] > len(pex_c[u"dev_configs"]):
+        #        increase = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
+        #        for i in range(increase):
+        #            pex_c[u"dev_configs"].append(pex.create_device(bus, ))
+        #    elif gv.sd[u"nbrd"] < len(pex_c[u"dev_configs"]):
+        #        decrease = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
+        #        pex_c[u"dev_configs"] = pex_c[u"dev_configs"][:decrease]
+        #for i in range(gv.sd[u"nbrd"]):
+        #    pex_c[u"dev_configs"][i][u"hw_addr"] = qdict[u"con" + str(i)]
 
+        if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:  #  check if config changed
+            pex_c[u"pex_status"] = u"unconfigured"
         # save changes to permanent storage
         pex.save_pex_config((pex_c))
 

@@ -6,14 +6,14 @@ from __future__ import print_function
 import gv  # Get access to SIP's settings, gv = global variables
 
 # import smbus required to control the io expander hardware
-blockedPlugin = False  # assume that the needed module is available
+SMBus_avail = True  # assume that the needed module is available
 try:
     import smbus
 except ModuleNotFoundError:
     try:
         import smbus2 as smbus
     except ModuleNotFoundError:
-        blockedPlugin = True  # missing smbus module
+        SMBus_avail = False  # missing smbus module
 
 class IO_Extender():
     '''This is the base class for all supported io_extender hardware.'''
