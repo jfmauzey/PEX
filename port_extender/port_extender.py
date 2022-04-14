@@ -31,6 +31,30 @@ def i2c_scan(i2c_bus, start_addr = 0x08, end_addr = 0xF7):
             pass  # no device responded
     return devices_discovered  # list of addresses from successful handshake ACK
 
+# Use installed RAM size to determine which smbus to use.
+def get_smbus_default():
+    if SMBus_avail:
+        ram_size = 0
+        with open("/proc/meminfo", "r") as f:
+            r = f.readline()  # every line has three fields
+            while r:
+                if r.index(u"MemTotal") >= 0:
+                    t, r, m = r.split()
+                    ram_size = int(r)
+                    if m == "kB":
+                        ram_size *= 1024
+                    else:
+                        print("ERROR: configuring SMBus. Unknown platform.")
+                    break
+                r = f.readline()
+        if ram_size > 256 * 1024:  # All pi's with more than 256 kB RAM use smbus 1
+            default_smbus = 1
+        else:
+            default_smbus = 0  # Early pi's with 26 pin connectors only have 256 kB RAM use smbus 0
+    else:
+        default_smbus = 1
+    return default_smbus
+
 
 class PEX():
 
@@ -60,8 +84,8 @@ class PEX():
         return dev_conf
 
     def create_default_config(self):
+        default_smbus = get_smbus_default()
         pex_conf = {}
-        default_smbus = 1
         pex_conf[u"pex_status"] = u"unconfigured"
         pex_conf[u"warnmsg"] = ''
         pex_conf[u"num_SIP_stations"] = 0

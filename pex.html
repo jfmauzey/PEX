@@ -37,46 +37,55 @@ $var page: pex
     <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')
     <button class="execute" id="docButton" type="button">$_(u'Help')</button></div>
 
-    $if u"warnmsg" in pex_c:
-        $if len(pex_c['warnmsg'])>0:
-            <p></p>
-            <h2>$pex_c['warnmsg']</h2>
-    
-    <br>
     <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
     <p>Supported hardwre: pcf8574 (8 ports), pc8575 (16 ports), mcp2308 (8 ports), mcp23017 (16 ports).</p>
     <p> The maximum number of devices (any combination) cannot exceed eight.</p>
     <p>See help page for supported options or ask for support on the SIP forum.</p>
-    <br>
+    <hr>
 
-    <h2>Number of SIP Stations  ${len(gv.srvals)}</h2>
+    <h2>Status:  ${pex_c[u"pex_status"]}</h2>
+
+    $if u"warnmsg" in pex_c:
+        $if len(pex_c['warnmsg'])>0:
+            <p></p>
+            <h2>$pex_c['warnmsg']</h2>
+    <hr>
 
     <div id="current_config">
     <div class="title">$_(u'Port Extender -- Current Configuration')</div>
-        $if len(pex_c['dev_configs']):
-            <table class="collapsetable" border="1">
+
+    $ srvals_len = len(gv.srvals)
+    $ pex_ports = pex_c[u'num_configured_SIP_stations']
+    <p>Total SIP Stations: $srvals_len</p>
+    $if srvals_len > pex_ports:
+        <p>SIP Station remaining to be configured: ${srvals_len - pex_ports}.</p>
+    $else:
+        <p>All SIP Stations configured.</p>
+
+    $if srvals_len > 0:
+        <table class="collapsetable" border="1">
+            <tr>
+                <th>$_(u'Port ID')</th>
+                <th>$_(u'SMBus')</th>
+                <th>$_(u'Port Addr')</th>
+                <th>$_(u'IC Type')</th>
+                <th>$_(u'SIP Station Span')</th>
+            </tr>
+            $for port_id in range(0,len(pex_c['dev_configs'])):
                 <tr>
-                    <th>$_(u'Port ID')</th>
-                    <th>$_(u'SMBus')</th>
-                    <th>$_(u'Port Addr')</th>
-                    <th>$_(u'IC Type')</th>
-                    <th>$_(u'SIP Station Span')</th>
+                    <td style="text-align: center">${port_id+1}</td>
+                    <td style="text-align: center">${pex_c['dev_configs'][port_id]['bus_id']}</td>
+                    <td style="text-align: center">${hex(int(pex_c['dev_configs'][port_id]['hw_addr'], 16))}</td>
+                    <td style="text-align: center">${pex_c['dev_configs'][port_id]['ic_type']}</td>
+                    <td style="text-align: center">$_(u'Station Span')</td>
                 </tr>
-                $for port_id in range(0,len(pex_c['dev_configs'])):
-                    <tr>
-                        <td style="text-align: center">${port_id+1}</td>
-                        <td style="text-align: center">${pex_c['dev_configs'][port_id]['bus_id']}</td>
-                        <td style="text-align: center">${hex(int(pex_c['dev_configs'][port_id]['hw_addr'], 16))}</td>
-                        <td style="text-align: center">${pex_c['dev_configs'][port_id]['ic_type']}</td>
-                        <td style="text-align: center">$_(u'Station Span')</td>
-                    </tr>
-            </table>
-        $else:
-            <table class="collapsetable" border="1">
-                <tr>
-                    <td>$_(u"No previously configured devices.")</td>
-                </tr>
-            </table>
+        </table>
+    $else:
+        <table class="collapsetable" border="1">
+            <tr>
+                <td>$_(u"No previously configured devices.")</td>
+            </tr>
+        </table>
     <br>
     </div>
     </div>
