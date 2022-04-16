@@ -104,14 +104,19 @@ $var page: pex
             <tr><td colspan="4"><hr></td></tr>
             <tr>
                 <td style='text-transform: none;'>$_(u'IC Type: '):</td>
-                <td><input type="radio" id="pcf8574" name="ic_type" value="pcf8574" ${"checked" if pex_c['ic_type' ] =="pcf8574"  else ""}>
-                    <label for="pcf8574">pcf8574 (8bit)</label></td>
-                <td><input type="radio" id="pcf8575" name="ic_type" value="pcf8575" ${"checked" if pex_c['ic_type' ] =="pcf8575"  else ""}>
-                    <label for="pcf8575">pcf8575 (16bit)</label></td>
-                <td><input type="radio" id="mcp2308" name="ic_type" value="mcp2308" ${"checked" if pex_c['ic_type' ] =="mcp2308"  else ""}>
-                    <label for="mcp2308">mcp2308 (8bit)</label></td>
-                <td><input type="radio" id="mcp23017" name="ic_type" value="mcp23017" ${"checked" if pex_c['ic_type' ] =="mcp23017"  else ""}>
-                    <label for="mcp23017">mcp23017 (16bit)</label></td>
+                <td><div class="option" title="IC Type">
+                     <label>
+                         <span class="optLabel">IC Type</span>
+                         <select name="ic_type">
+                            <option selected="" value="mcp2308">Default</option>
+                            <option value="pcf8574">pcf8574 (8-bit)</option>
+                            <option value="pcf8575">pcf8575 (16-bit)</option>
+                            <option value="mcp2308">mcp2308 (8-bit)</option>
+                            <option value="mcp23017">mcp23017 (16-bit)</option>
+                        </select>
+                    </label>
+                </div>
+                </td>
             </tr>
         </table>
         <hr>

@@ -60,15 +60,21 @@ class PEX():
 
     def __init__(self):
         try:
-            self._number_of_stations = len(gv.srvals)
+            self.status = "Created"
+            self.warn_msg = ""
+            self._number_of_stations = len(gv.srvals)  # HERE jfm
             self.pex_c = self.load_config()
             self._dev_configs = self.pex_c['dev_configs']  # list of preconfigured device(s)
+            self.num_devs = len(self.pex_c['dev_configs'])
             self._debug = self.pex_c['debug']
         except (TypeError, KeyError) as e:
             print(u'ERROR: PEX bad or missing hardware config')
             print(u'       PEX will create default config')
             print(e)
+            self.status = "Created Default"
+            self.warn_msg = "ERROR: Using default configuration"
             self.pex_c = self.create_default_config()
+            self.num_devs = len(self.pex_c['dev_configs'])
             self._dev_configs = self.pex_c[u"dev_configs"]
             self._debug = True
 
@@ -88,12 +94,13 @@ class PEX():
         pex_conf = {}
         pex_conf[u"pex_status"] = u"unconfigured"
         pex_conf[u"warnmsg"] = ''
-        pex_conf[u"num_SIP_stations"] = 0
+        pex_conf[u"num_SIP_stations"] = 0  # HERE jfm Should be len(srvals)?
         pex_conf[u"dev_configs"] = [self.create_device()]
-        pex_conf[u"discovered_devices"] = self.scan_for_ioextenders(default_smbus)
+        pex_conf[u"discovered_devices"] = []
         pex_conf[u"num_configured_SIP_stations"] = 0
         pex_conf[u"default_smbus"] = default_smbus
         pex_conf[u"supported_hardware"] = [u'pcf8574', u'pcf8575', u'mcp2308', u'mcp23017']
+        pex_conf[u"default_ic_type"] = u'pcf8575'
         pex_conf[u"ic_type"] = u'pcf8575'
         pex_conf[u"debug"] = "0"
         return pex_conf

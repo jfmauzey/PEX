@@ -98,7 +98,7 @@ zones.connect(on_zone_change)
 
 
 class settings(ProtectedPage):
-    """Load an html page for entering PEX"""
+    """Load an html page for entering PEX settings."""
 
     def GET(self):
         pex_c[u"discovered_devices"] = pex.scan_for_ioextenders(pex_c[u"default_smbus"])
@@ -125,16 +125,14 @@ class update(ProtectedPage):
 
         if u"bus" in qdict:
             pex_c[u"default_smbus"] = qdict[u"bus"]
-        else:
-            pex_c["default_smus"] = 1
 
-        # Do we need ictype in the PEX configuration. It's used as a
+        # Do we need ic_type in the PEX configuration. It's used as a
         # default value. Each device also has an ictype field that is
         # used for the PEX span when mapping SIP stations to ports.
-        if u"ictype" in qdict:
-            pex_c[u"ic_type"] = qdict[u"ictype"]
+        if u"ic_type" in qdict:
+            pex_c[u"ic_type"] = qdict[u"ic_type"]
         else:
-            pex_c[u"ic_type"] = "pcf8574"
+            pex_c[u"ic_type"] = pex_c[u"default_ic_type"]  # used for auto configure
 
         if u"debug" in qdict: 
             if qdict[u"debug"]=="on":
@@ -166,7 +164,8 @@ class update(ProtectedPage):
         # save changes to permanent storage
         pex.save_config((pex_c))
 
-        raise web.seeother(u"/restart")
+        #raise web.seeother(u"/restart")
+        raise web.seeother(u"/pex")
 
 class test(ProtectedPage):
     """ test i2c from setup plugin page"""
