@@ -87,6 +87,23 @@ def on_zone_change(name, **kw):
 zones = signal(u"zone_change")
 zones.connect(on_zone_change)
 
+
+def notify_option_change(name, **kw):
+    print(u"Option settings changed in gv.sd")
+    if len(gv.srvals) != pex_c[u"num_SIP_stations"]: #config changed
+        print(u"Num of boards changed in gv.sd")
+        pex_c[u"dev_configs"] = pex.autogenerate_device_config(pex_c[u"default_ic_type"],
+                                                               pex_c[u"default_smbus"])
+        # update PEX status and number_configured_pex_ports
+        pex_c[u"num_SIP_stations"] = len(gv.srvals)
+        pex_c[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_c[u"dev_configs"]],
+                                              pex_c[u"num_PEX_stations"])
+        pex_c[u"pex_status"] = u"configured"
+
+
+option_change = signal(u"option_change")
+option_change.connect(notify_option_change)
+
 ################################################################################
 # Web pages:                                                                   #
 ################################################################################
