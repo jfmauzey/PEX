@@ -99,7 +99,6 @@ class PEX():
         pex_conf[u"auto_configure"] = 1
         pex_conf[u"dev_configs"] = []
         pex_conf[u"discovered_devices"] = []
-        pex_conf[u"num_configured_SIP_stations"] = 0
         pex_conf[u"default_smbus"] = default_smbus
         pex_conf[u"supported_hardware"] = [u'pcf8574', u'pcf8575', u'mcp2308', u'mcp23017']
         pex_conf[u"default_ic_type"] = u'mcp23017'
@@ -119,7 +118,8 @@ class PEX():
                                                                              pex_config[u"default_smbus"])
                 # update PEX status and number_configured_pex_ports
                 pex_config[u"num_SIP_stations"] = len(gv.srvals)
-                pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]])
+                pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]],
+                                                      pex_config[u"num_PEX_stations"])
                 pex_config[u"pex_status"] = u"configured"
 
             self.save_config(pex_config)

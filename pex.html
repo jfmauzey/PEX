@@ -54,30 +54,33 @@ $var page: pex
     <div id="current_config">
     <div class="title">$_(u'Port Extender -- Current Configuration')</div>
 
-    $ srvals_len = len(gv.srvals)
-    $ pex_ports = pex_c[u'num_configured_SIP_stations']
-    <p>Total SIP Stations: $srvals_len</p>
-    $if srvals_len > pex_ports:
-        <p>SIP Station remaining to be configured: ${srvals_len - pex_ports}.</p>
+    $ num_sip_ports = pex_c[u"num_SIP_stations"]
+    $ num_pex_ports = pex_c[u"num_PEX_stations"]
+    <p>Total SIP Stations: $num_sip_ports</p>
+    $if num_sip_ports > num_pex_ports:
+        <p>SIP Station remaining to be configured: ${num_sip_ports - num_pex_ports}.</p>
     $else:
         <p>All SIP Stations configured.</p>
 
-    $if srvals_len > 0:
+    $if num_sip_ports > 0:
         <table class="collapsetable" border="1">
             <tr>
                 <th>$_(u'Port ID')</th>
                 <th>$_(u'SMBus')</th>
                 <th>$_(u'Port Addr')</th>
                 <th>$_(u'IC Type')</th>
-                <th>$_(u'SIP Station Span')</th>
+                <th>$_(u'SIP Station Spans these stations')</th>
             </tr>
             $for port_id in range(0,len(pex_c['dev_configs'])):
+                $ first = pex_c[u"dev_configs"][port_id][u"first"]
+                $ last = min(pex_c[u"dev_configs"][port_id][u"last"], num_sip_ports)
+                $ SIP_span = u"S{} thru S{}".format(first, last)
                 <tr>
                     <td style="text-align: center">${port_id+1}</td>
                     <td style="text-align: center">${pex_c['dev_configs'][port_id]['bus_id']}</td>
                     <td style="text-align: center">${hex(int(pex_c['dev_configs'][port_id]['hw_addr'], 16))}</td>
                     <td style="text-align: center">${pex_c['dev_configs'][port_id]['ic_type']}</td>
-                    <td style="text-align: center">$_(u'Station Span')</td>
+                    <td style="text-align: center">${SIP_span}</td>
                 </tr>
         </table>
     $else:
