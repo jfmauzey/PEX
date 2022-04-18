@@ -68,12 +68,6 @@ else:
     pex_c[u"warnmsg"] = {}
 
 
-# for future use. No test devices available at the moment.
-modbits=8   # default number op io pins on i2c module
-if (pex_c[u"ic_type"]=="pcf8575"):
-    modbits=16
-
-
 #### output command when signal received ####
 def on_zone_change(name, **kw):
     """ Send command when core program signals a change in station state."""

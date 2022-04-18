@@ -72,9 +72,9 @@ $var page: pex
                 <th>$_(u'SIP Station Spans these stations')</th>
             </tr>
             $for port_id in range(0,len(pex_c['dev_configs'])):
-                $ first = pex_c[u"dev_configs"][port_id][u"first"]
-                $ last = min(pex_c[u"dev_configs"][port_id][u"last"], num_sip_ports)
-                $ SIP_span = u"S{} thru S{}".format(first, last)
+                $ first = pex_c[u"dev_configs"][port_id][u"first"] - 1
+                $ last = min(pex_c[u"dev_configs"][port_id][u"last"], num_sip_ports) - 1
+                $ SIP_span = u"S{} thru S{}".format(gv.snames[first], gv.snames[last])
                 <tr>
                     <td style="text-align: center">${port_id+1}</td>
                     <td style="text-align: center">${pex_c['dev_configs'][port_id]['bus_id']}</td>
