@@ -46,7 +46,8 @@ gv.plugin_menu.append([u"pex", u"/pex"])
 
 demo_mode = True
 
-if platform.machine() == "armv6l"  or platform.machine() == "armv7l":  # may be removed later but makes dev and testing possible without smbus
+# may be removed later but makes dev and testing possible without smbus
+if platform.machine() == "armv6l" or platform.machine() == "armv7l":
     demo_mode = False
 
 # load/create pex config using json permanent storage
@@ -143,7 +144,7 @@ class update(ProtectedPage):
             pex_c[u"debug"] = "0"
 
         # jfm HERE
-        # assumes that number of SIP configured boards is equal to the number of io extenders
+        # assumes that number of SIP configured boards is equal to the number of io extenders.
         # Result is that the PEX device configuration is automatically created to match
         # changes in the number of configured SIP stations. This code does not try to
         # map the devices discovered by the smbus scan to the list of configured devices.
@@ -158,6 +159,7 @@ class update(ProtectedPage):
         #for i in range(gv.sd[u"nbrd"]):
         #    pex_c[u"dev_configs"][i][u"hw_addr"] = qdict[u"con" + str(i)]
 
+        # jfm auto configure requires assuming a device type and assignment to SIP stattions.
         if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:  #  check if config changed
             pex_c[u"pex_status"] = u"unconfigured"
 

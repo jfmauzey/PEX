@@ -5,6 +5,7 @@
 from __future__ import print_function
 
 # standard library imports
+import math
 import json
 
 import gv  # Get access to SIP's settings, gv = global variables
@@ -60,7 +61,6 @@ class PEX():
 
     def __init__(self):
         try:
-            self.status = "Created"
             self.warn_msg = ""
             self._number_of_stations = len(gv.srvals)  # HERE jfm
             self.pex_c = self.load_config()
@@ -71,7 +71,6 @@ class PEX():
             print(u'ERROR: PEX bad or missing hardware config')
             print(u'       PEX will create default config')
             print(e)
-            self.status = "Created Default"
             self.warn_msg = "ERROR: Using default configuration"
             self.pex_c = self.create_default_config()
             self.num_devs = len(self.pex_c['dev_configs'])
@@ -89,29 +88,40 @@ class PEX():
         dev_conf[u"last"] = last  # Last SIP Station for this device
         return dev_conf
 
+    # jfm Need to figure out how auto configure changes the creation of the default config.
     def create_default_config(self):
         default_smbus = get_smbus_default()
         pex_conf = {}
         pex_conf[u"pex_status"] = u"unconfigured"
         pex_conf[u"warnmsg"] = ''
         pex_conf[u"num_SIP_stations"] = 0  # HERE jfm Should be len(srvals)?
-        pex_conf[u"dev_configs"] = [self.create_device()]
+        pex_conf[u"num_PEX_stations"] = 0
+        pex_conf[u"auto_configure"] = 1
+        pex_conf[u"dev_configs"] = []
         pex_conf[u"discovered_devices"] = []
         pex_conf[u"num_configured_SIP_stations"] = 0
         pex_conf[u"default_smbus"] = default_smbus
         pex_conf[u"supported_hardware"] = [u'pcf8574', u'pcf8575', u'mcp2308', u'mcp23017']
-        pex_conf[u"default_ic_type"] = u'pcf8575'
-        pex_conf[u"ic_type"] = u'pcf8575'
+        pex_conf[u"default_ic_type"] = u'mcp23017'
+        pex_conf[u"ic_type"] = u'mcp23017'
         pex_conf[u"debug"] = "0"
         return pex_conf
 
-    # Read in the pex config for this plugin from it's JSON file
+    # Read in the pex config for this plugin from it's JSON file or create a default config
     def load_config(self):
         try:
             with open(u"./data/pex_config.json", u"r") as f:
                 pex_config = json.load(f)  # Read the pex_config from file
         except IOError:  # If file does not exist or is broken create file with defaults.
             pex_config = self.create_default_config()
+            if pex_config[u"auto_configure"]:
+                pex_config[u"dev_configs"] = self.autogenerate_device_config(pex_config[u"default_ic_type"],
+                                                                             pex_config[u"default_smbus"])
+                # update PEX status and number_configured_pex_ports
+                pex_config[u"num_SIP_stations"] = len(gv.srvals)
+                pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]])
+                pex_config[u"pex_status"] = u"configured"
+
             self.save_config(pex_config)
         return pex_config
 
@@ -121,6 +131,38 @@ class PEX():
         # need to validate config before saving
         with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
             json.dump(pex_c, f, indent=4)
+
+    def autogenerate_device_config(self, ic_type, smbus_id):
+        '''
+        The required number of io extender devices must be present in the
+        scan results to successfully create the SIP to Port mapping.
+         '''
+        discovered_devices = self.scan_for_ioextenders(smbus_id)
+
+        if ic_type == u"pcf8574" or ic_type == u"mcp2308":
+            port_span = 8
+        else:
+            port_span = 16
+
+        srlen = len(gv.srvals)
+        num_devs_needed = math.ceil(srlen / port_span)
+        if num_devs_needed > len(discovered_devices):
+            print("ERROR: PEX cannot auto configure due to lack of detected io extenders.")
+            print("       PEX requires {} io extender devices: Detected = {}".format(num_devs_needed, len(discovered_devices)))
+            print("       PEX must be configured and io extender devices must be detected.")
+            return []  # no devices could use simulated devices
+
+        conf_d = []  # list of auto configured io extender devices
+        for port_id in range(num_devs_needed):  # port_id is zero based index for device mapping
+            # create each device
+            first = port_id * port_span + 1
+            last = (port_id + 1) * port_span
+            hw_addr = hex(discovered_devices[port_id])
+            conf_d.append(self.create_device(bus_id = smbus_id, hw_addr = hw_addr, ic_type = ic_type,
+                                             size = port_span, first = first, last = last))
+
+        return conf_d
+
 
     def scan_for_ioextenders(self, bus_id):
         'Scan well known bus address range for supported hardware port extenders.'
@@ -155,11 +197,11 @@ class PEX():
         if self.has_config_changed(conf):
             print(u"ERROR: PEX configuration changed. Need to reconfigure.")
             return
-        elif self.pex_c['pex_status'] != "run":
+        elif self.pex_c[u"pex_status"] != "run":
             print(u'ERROR: PEX not in "run" mode. Need to reconfigure.')
             return
 
-        # now use srvalues to set values of configured ports
+        # use srvalues to set values of configured ports.
         print("DeBug: PEX set outputs for {} ports.".format(len(gv.srvals)))
         # Map the srvalues to the device(s). The order that the devices are
         # listed in the config are the order for mapping. The first device

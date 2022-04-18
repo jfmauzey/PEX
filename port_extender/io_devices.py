@@ -15,17 +15,18 @@ except ModuleNotFoundError:
     except ModuleNotFoundError:
         SMBus_avail = False  # missing smbus module
 
+
 class IO_Extender():
-    '''This is the base class for all supported io_extender hardware.'''
+    """This is the base class for all supported io_extender hardware."""
     def __init__(self, bus_id=1, ic_type="mcp23017", bus_addr=0x20,
                  initialize=False, alr=False):
-        '''Must configure port hardwre. The mcp family must initialize the
+        """Must configure port hardwre. The mcp family must initialize the
         Data Direction Register (DDR) to set all ports as outputs. The pcf
         hardware has no DDR to control the port behavior. The pcf devices
         have a small current source that pulls the output high similar to
         a weak pullup on an open collector output. This interface only
         supports using the io extenders as outputs. Initialization needs
-        only to be done once.'''
+        only to be done once."""
         self._bus_id = bus_id
         self._ic_type = ic_type
         self._bus_addr = bus_addr
