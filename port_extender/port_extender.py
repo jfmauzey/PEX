@@ -62,7 +62,7 @@ class PEX():
     def __init__(self):
         try:
             self.warn_msg = ""
-            self._number_of_stations = len(gv.srvals)  # HERE jfm
+            self._number_of_stations = gv.sd[u"nst"]
             self.pex_c = self.load_config()
             self._dev_configs = self.pex_c['dev_configs']  # list of preconfigured device(s)
             self.num_devs = len(self.pex_c['dev_configs'])
@@ -94,7 +94,7 @@ class PEX():
         pex_conf = {}
         pex_conf[u"pex_status"] = u"unconfigured"
         pex_conf[u"warnmsg"] = ''
-        pex_conf[u"num_SIP_stations"] = 0  # HERE jfm Should be len(srvals)?
+        pex_conf[u"num_SIP_stations"] = 0
         pex_conf[u"num_PEX_stations"] = 0
         pex_conf[u"auto_configure"] = 1
         pex_conf[u"dev_configs"] = []
@@ -111,13 +111,31 @@ class PEX():
         try:
             with open(u"./data/pex_config.json", u"r") as f:
                 pex_config = json.load(f)  # Read the pex_config from file
+                # need to validate
+                if pex_config[u"num_SIP_stations"] != gv.sd[u"nst"]:
+                    print("PEX: Number of SIP stations not same as saved config.")
+                    if pex_config[u"auto_configure"]:
+                        pex_config[u"dev_configs"] = self.autogenerate_device_config(pex_config[u"default_ic_type"],
+                                                                                     pex_config[u"default_smbus"])
+                        # update PEX status and number_configured_pex_ports
+                        pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
+                        pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]],
+                                                              pex_config[u"num_PEX_stations"])
+                        pex_config[u"pex_status"] = u"configured"
+                    else:
+                        pex_config[u"pex_status"] = u"unconfigured"
+                        pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
+                        pex_config[u"num_PEX_stations"] = 0
+
+                    self.save_config(pex_config)
+
         except IOError:  # If file does not exist or is broken create file with defaults.
             pex_config = self.create_default_config()
             if pex_config[u"auto_configure"]:
                 pex_config[u"dev_configs"] = self.autogenerate_device_config(pex_config[u"default_ic_type"],
                                                                              pex_config[u"default_smbus"])
                 # update PEX status and number_configured_pex_ports
-                pex_config[u"num_SIP_stations"] = len(gv.srvals)
+                pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
                 pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]],
                                                       pex_config[u"num_PEX_stations"])
                 pex_config[u"pex_status"] = u"configured"
@@ -144,7 +162,7 @@ class PEX():
         else:
             port_span = 16
 
-        srlen = len(gv.srvals)
+        srlen = gv.sd[u"nst"]
         num_devs_needed = math.ceil(srlen / port_span)
         if num_devs_needed > len(discovered_devices):
             print("ERROR: PEX cannot auto configure due to lack of detected io extenders.")
@@ -190,7 +208,7 @@ class PEX():
 
     def has_config_changed(self, conf):
         return self._dev_configs != conf['dev_configs'] or \
-               self._number_of_stations != len(gv.srvals)
+               self._number_of_stations != gv.sd[u"nst"]
 
     def set_output(self, conf):
         'Maps the SIP Station Values to the configured hardware port(s).'
@@ -202,13 +220,14 @@ class PEX():
             return
 
         # use srvalues to set values of configured ports.
-        print("DeBug: PEX set outputs for {} ports.".format(len(gv.srvals)))
-        # Map the srvalues to the device(s). The order that the devices are
+        print("DeBug: PEX set outputs for {} ports.".format(gv.sd[u"nst"]))
+
+        # Map srvalues to the device(s). The order that the devices are
         # listed in the config are the order for mapping. The first device
         # maps the first DeviceSize (8 or 16) ports to Station_1 through
         # Station_N (N=8 or 16).
         st = 0  # start index in successive slices
-        sr_len = len(gv.srvals)
+        sr_len = gv.sd[u"nst"]
         device_count = 0  # jfm for debug track which device is selected
         for dev in self._dev_configs:
             device_count += 1

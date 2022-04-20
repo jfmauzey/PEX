@@ -53,15 +53,15 @@ $var page: pex
 
     <div id="current_config">
     <div class="title">$_(u'Port Extender -- Current Configuration')</div>
-
     $ num_sip_ports = pex_c[u"num_SIP_stations"]
     $ num_pex_ports = pex_c[u"num_PEX_stations"]
     <p>Total SIP Stations: $num_sip_ports</p>
     $if num_sip_ports > num_pex_ports:
-        <p>SIP Station remaining to be configured: ${num_sip_ports - num_pex_ports}.</p>
+        <p>SIP Stations remaining to be configured: ${num_sip_ports - num_pex_ports}.</p>
     $else:
         <p>All SIP Stations configured.</p>
-
+        $if num_sip_ports < num_pex_ports:
+            <p>PEX stations unassigned: ${num_pex_ports - num_sip_ports}.</p>
     $if num_sip_ports > 0:
         <table class="collapsetable" border="1">
             <tr>
@@ -69,19 +69,19 @@ $var page: pex
                 <th>$_(u'SMBus')</th>
                 <th>$_(u'Port Addr')</th>
                 <th>$_(u'IC Type')</th>
-                <th>$_(u'SIP Station Spans these stations')</th>
+                <th>$_(u'Spanned SIP Stations')</th>
             </tr>
-            $for port_id in range(0,len(pex_c['dev_configs'])):
-                $ first = pex_c[u"dev_configs"][port_id][u"first"] - 1
-                $ last = min(pex_c[u"dev_configs"][port_id][u"last"], num_sip_ports) - 1
-                $ SIP_span = u"{} thru {}".format(gv.snames[first], gv.snames[last])
-                <tr>
-                    <td style="text-align: center">${port_id+1}</td>
-                    <td style="text-align: center">${pex_c['dev_configs'][port_id]['bus_id']}</td>
-                    <td style="text-align: center">${hex(int(pex_c['dev_configs'][port_id]['hw_addr'], 16))}</td>
-                    <td style="text-align: center">${pex_c['dev_configs'][port_id]['ic_type']}</td>
-                    <td style="text-align: center">${SIP_span}</td>
-                </tr>
+        $for port_id in range(0,len(pex_c['dev_configs'])):
+            $ first = pex_c[u"dev_configs"][port_id][u"first"] - 1
+            $ last = min(pex_c[u"dev_configs"][port_id][u"last"], num_sip_ports) - 1
+            $ SIP_span = u"{} thru {}".format(gv.snames[first], gv.snames[last])
+            <tr>
+                <td style="text-align: center">${port_id+1}</td>
+                <td style="text-align: center">${pex_c['dev_configs'][port_id]['bus_id']}</td>
+                <td style="text-align: center">${pex_c['dev_configs'][port_id]['hw_addr']}</td>
+                <td style="text-align: center">${pex_c['dev_configs'][port_id]['ic_type']}</td>
+                <td style="text-align: center">${SIP_span}</td>
+            </tr>
         </table>
     $else:
         <table class="collapsetable" border="1">
@@ -92,9 +92,7 @@ $var page: pex
     <br>
     </div>
     </div>
-
     <br><hr>
-
     <div id="edit_config">
     <div class="title">$_(u'Edit Port Extender Device Configuration')</div>
     <form id="clic" name="clic" action="/pexu" method="get">
@@ -111,7 +109,7 @@ $var page: pex
                      <label>
                          <span class="optLabel">IC Type</span>
                          <select name="ic_type">
-                            <option selected="" value="mcp2308">Default</option>
+                            <option selected="" value="mcp23017">Default</option>
                             <option value="pcf8574">pcf8574 (8-bit)</option>
                             <option value="pcf8575">pcf8575 (16-bit)</option>
                             <option value="mcp2308">mcp2308 (8-bit)</option>
@@ -128,17 +126,17 @@ $var page: pex
                 <th class="stationNumber">$_(u'Port')</th>
                 <th class="columnName">$_(u'0xAddr')</th>
             </tr>
-            $for bid in range(0,gv.sd['nbrd']):
+            $for dev_id in range(0, len(pex_c['dev_configs'])):
                     <tr>
-                        <td class="BoardID">${bid + 1}</td>
+                        <td class="BoardID">${dev_id + 1}</td>
                         <td class="command">
-                            <input type="text" size="10" value="${hex(int(pex_c['dev_configs'][bid]['hw_addr'],16)) if bid < len(pex_c['dev_configs']) else ''}" id="con${bid}" name="con${bid}">
+                            <input type="text" size="10" value="${pex_c['dev_configs'][dev_id]['hw_addr'] if dev_id < len(pex_c['dev_configs']) else ''}" id="con${dev_id}" name="con${dev_id}">
                         </td>                       
                     </tr>
         </table>
-        
-            $for bid in range(gv.sd['nbrd']):
-            	<input type="hidden" id="i${bid}" name="i${bid}"/>
+
+            $for dev_id in range(0, len(pex_c['dev_configs'])):
+            	<input type="hidden" id="i${dev_id}" name="i${dev_id}"/>
         
         <input type="checkbox" name="debug" id="debug" ${"checked" if pex_c['debug' ] =="1" else ""}>
         <label for="debug">log extended information</label>

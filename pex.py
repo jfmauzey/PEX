@@ -1,4 +1,14 @@
 #!/usr/bin/env python
+#  pex.py -- Provides interface to io extender boards to replace the standard
+#            SIP shift register for controlling the irrigation stations.
+#  John Mauzeu 220418
+#
+#  Hooks to two blinker events.
+#  1.set_output
+#  2. notify_option_change
+#
+#  Uses a common dicionary that is shared between the PEX implementation and
+#  the SIP UI web browser interface.
 
 # Python 2/3 compatibility imports
 from __future__ import print_function
@@ -72,7 +82,7 @@ else:
 def on_zone_change(name, **kw):
     """ Send command when core program signals a change in station state."""
 
-    if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:
+    if pex_c[u"num_SIP_stations"] != gv.sd[u"nst"]:
         print(u"pex plugin blocked due to incomplete configuration.")
         pex_c[u"warnmsg"] = "ERROR: Failure to set outputs. PEX needs to be configured."
         return
@@ -89,17 +99,24 @@ zones.connect(on_zone_change)
 
 
 def notify_option_change(name, **kw):
-    print(u"Option settings changed in gv.sd")
-    if len(gv.srvals) != pex_c[u"num_SIP_stations"]: #config changed
-        print(u"Num of boards changed in gv.sd")
+    print(u"PEX: Changed SIP Option settings. Check for need to reconfigure.")
+    if gv.sd[u"nst"] != pex_c[u"num_SIP_stations"]: #config changed
+        print(u"PEX: Num of boards changed in gv.sd")
         pex_c[u"dev_configs"] = pex.autogenerate_device_config(pex_c[u"default_ic_type"],
                                                                pex_c[u"default_smbus"])
+        if len(pex_c[u"dev_configs"]):
+            pex_c[u"pex_status"] = u"configured"
+        else:
+            pex_c[u"pex_status"] = u"unconfigured"  # Failure to auto-configure
+            print(u"PEX: Failure to automagically configure. PEX is blocked from running.")
+
         # update PEX status and number_configured_pex_ports
-        pex_c[u"num_SIP_stations"] = len(gv.srvals)
+        pex_c[u"num_SIP_stations"] = gv.sd[u"nst"]
         pex_c[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_c[u"dev_configs"]],
                                               pex_c[u"num_PEX_stations"])
-        pex_c[u"pex_status"] = u"configured"
 
+        # Save modified configuration to permanent storage in json file
+        pex.save_config(pex_c)
 
 option_change = signal(u"option_change")
 option_change.connect(notify_option_change)
@@ -154,26 +171,17 @@ class update(ProtectedPage):
         else:
             pex_c[u"debug"] = "0"
 
-        # jfm HERE
-        # assumes that number of SIP configured boards is equal to the number of io extenders.
-        # Result is that the PEX device configuration is automatically created to match
-        # changes in the number of configured SIP stations. This code does not try to
-        # map the devices discovered by the smbus scan to the list of configured devices.
-        #if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:  #  check if config changed
-        #    if gv.sd[u"nbrd"] > len(pex_c[u"dev_configs"]):
-        #        increase = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
-        #        for i in range(increase):
-        #            pex_c[u"dev_configs"].append(pex.create_device(bus, ))
-        #    elif gv.sd[u"nbrd"] < len(pex_c[u"dev_configs"]):
-        #        decrease = gv.sd[u"nbrd"] - len(pex_c[u"dev_configs"])
-        #        pex_c[u"dev_configs"] = pex_c[u"dev_configs"][:decrease]
-        #for i in range(gv.sd[u"nbrd"]):
-        #    pex_c[u"dev_configs"][i][u"hw_addr"] = qdict[u"con" + str(i)]
-
-        # jfm auto configure requires assuming a device type and assignment to SIP stattions.
-        if len(pex_c[u"dev_configs"]) != gv.sd[u"nbrd"]:  #  check if config changed
+        if pex_c[u"num_SIP_stations"] != gv.sd[u"nst"]:  #  check if config changed
             pex_c[u"pex_status"] = u"unconfigured"
 
+        # HERE jfm Need to sort out PEX update and auto-config
+        # For now override what's on the update page and just use auto-configure
+        pex_c[u"num_SIP_stations"] = gv.sd[u"nst"]
+        pex_c[u"dev_configs"] = pex.autogenerate_device_config(pex_c[u"default_ic_type"],
+                                                               pex_c[u"default_smbus"])
+
+        pex_c[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_c[u"dev_configs"]],
+                                         pex_c[u"num_PEX_stations"])
         # save changes to permanent storage
         pex.save_config((pex_c))
 
