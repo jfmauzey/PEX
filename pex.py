@@ -61,11 +61,15 @@ if platform.machine() == "armv6l" or platform.machine() == "armv7l":
     demo_mode = False
 
 # load/create pex config using json permanent storage
+print("DEBUG_PEX: pex:line 65: Before create PEX.")
 pex = PEX()
+print("DEBUG_PEX: pex:line 66: After create PEX.")
 
 # pex_c contains the configuration for the hardware and the configuration of the PEX controller.
 #       Also works like a shared memory to exchange PEX UI display and update data.
+print("DEBUG_PEX: pex:line 71: Before create pex_c.")
 pex_c = pex.pex_c
+print("DEBUG_PEX: pex:line 72: After create pex_c.")
 
 # disable gpio_pins. We can discuss later if a mix of gpio and i2c should be possible
 gv.use_gpio_pins = False
@@ -82,7 +86,11 @@ else:
 def on_zone_change(name, **kw):
     """ Send command when core program signals a change in station state."""
 
+    if pex_c[u"pex_status"] != u"running:" :
+        print("PEX: Not in RUN mode.")
+        return
     if pex_c[u"num_SIP_stations"] != gv.sd[u"nst"]:
+        # HERE validate then attempt to reconfigure
         print(u"pex plugin blocked due to incomplete configuration.")
         pex_c[u"warnmsg"] = "ERROR: Failure to set outputs. PEX needs to be configured."
         return
@@ -102,18 +110,23 @@ def notify_option_change(name, **kw):
     print(u"PEX: Changed SIP Option settings. Check for need to reconfigure.")
     if gv.sd[u"nst"] != pex_c[u"num_SIP_stations"]: #config changed
         print(u"PEX: Num of boards changed in gv.sd")
-        pex_c[u"dev_configs"] = pex.autogenerate_device_config(pex_c[u"default_ic_type"],
-                                                               pex_c[u"default_smbus"])
-        if len(pex_c[u"dev_configs"]):
-            pex_c[u"pex_status"] = u"configured"
-        else:
-            pex_c[u"pex_status"] = u"unconfigured"  # Failure to auto-configure
-            print(u"PEX: Failure to automagically configure. PEX is blocked from running.")
-
-        # update PEX status and number_configured_pex_ports
         pex_c[u"num_SIP_stations"] = gv.sd[u"nst"]
-        pex_c[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_c[u"dev_configs"]],
-                                              pex_c[u"num_PEX_stations"])
+        if pex_c[u"auto_configure"]:
+            pex_c[u"dev_configs"] = pex.autogenerate_device_config(pex_c[u"default_ic_type"],
+                                                                   pex_c[u"default_smbus"])
+            if len(pex_c[u"dev_configs"]):
+                pex_c[u"pex_status"] = u"configured"
+            else:
+                pex_c[u"pex_status"] = u"unconfigured"  # Failure to auto-configure
+                print(u"PEX: Failure to automagically configure. PEX is blocked from running.")
+
+            # update PEX status and number_configured_pex_ports
+            pex_c[u"num_SIP_stations"] = gv.sd[u"nst"]
+            pex_c[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_c[u"dev_configs"]])
+        else:
+            print("PEX: Auto-configure disabled. Need to manually configure devices.")
+            pex_c[u"pex_status"] = u"unconfigured"  # Must manually configure
+            pex_c[u"num_PEX_stations"] = 0
 
         # Save modified configuration to permanent storage in json file
         pex.save_config(pex_c)

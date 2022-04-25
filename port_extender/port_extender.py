@@ -60,24 +60,17 @@ def get_smbus_default():
 class PEX():
 
     def __init__(self):
-        try:
-            self.warn_msg = ""
-            self._number_of_stations = gv.sd[u"nst"]
-            self.pex_c = self.load_config()
-            self._dev_configs = self.pex_c['dev_configs']  # list of preconfigured device(s)
-            self.num_devs = len(self.pex_c['dev_configs'])
-            self._debug = self.pex_c['debug']
-        except (TypeError, KeyError) as e:
-            print(u'ERROR: PEX bad or missing hardware config')
-            print(u'       PEX will create default config')
-            print(e)
-            self.warn_msg = "ERROR: Using default configuration"
-            self.pex_c = self.create_default_config()
-            self.num_devs = len(self.pex_c['dev_configs'])
-            self._dev_configs = self.pex_c[u"dev_configs"]
-            self._debug = True
+        self.warn_msg = ""
+        self._number_of_stations = gv.sd[u"nst"]
+        print("DEBUG_PEX: port_extender:line 66. Before load_config.")
+        self.pex_c = self.load_config()
+        print("DEBUG_PEX: port_extender:line 67. After load_config.")
 
-    def create_device(self, bus_id=1, hw_addr=u"0x24", ic_type=u"pcf8574", size=8, first=0, last=0):
+        self._dev_configs = self.pex_c['dev_configs']  # list of preconfigured device(s)
+        self.num_devs = len(self.pex_c['dev_configs'])
+        self._debug = self.pex_c['debug']
+
+    def create_device(self, bus_id=1, hw_addr=u"0x20", ic_type=u"pcf8574", size=8, first=0, last=0):
         """Creates device using default parameters if none are specified."""
         dev_conf = {}
         dev_conf[u"bus_id"] = bus_id
@@ -111,44 +104,63 @@ class PEX():
         try:
             with open(u"./data/pex_config.json", u"r") as f:
                 pex_config = json.load(f)  # Read the pex_config from file
-                # need to validate
-                if pex_config[u"num_SIP_stations"] != gv.sd[u"nst"]:
-                    print("PEX: Number of SIP stations not same as saved config.")
-                    if pex_config[u"auto_configure"]:
-                        pex_config[u"dev_configs"] = self.autogenerate_device_config(pex_config[u"default_ic_type"],
-                                                                                     pex_config[u"default_smbus"])
-                        # update PEX status and number_configured_pex_ports
-                        pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
-                        pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]],
-                                                              pex_config[u"num_PEX_stations"])
+                print("DEBUG_PEX: load_config:line 107. Success reading json config.")
+        except IOError:  # If file does not exist or is broken create file with defaults.
+            print("DEBUG_PEX: load_config:line 109. Failed reading json config.")
+            pex_config = self.create_default_config()
+            pex_config[u"num_SIP_stations"] = gv.sd["nst"]
+            print("DEBUG_PEX: load_config:line 113. Before calling autogenerate_device_config.")
+            pex_config[u"dev_configs"] = self.autogenerate_device_config(
+                   pex_config[u"default_ic_type"], pex_config[u"default_smbus"])
+            print("DEBUG_PEX: load_config:line 113. After calling autogenerate_device_config.")
+            pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]])
+            if pex_config[u"num_PEX_stations"] >= gv.sd["nst"]:
+                pex_config[u"pex_status"] = u"configured"
+            else:
+                pex_config[u"pex_status"] = u"unconfigured"
+            print("DEBUG_PEX: load_config:line 121. Before calling save_config.")
+            self.save_config(pex_config)
+            print("DEBUG_PEX: load_config:line 123. After calling save_config.")
+
+        else: # HERE validate config
+            print("DEBUG_PEX: load_config:line126. Before validation check.")
+            if not (self.sanity_check_config(pex_config) and self.verify_hardware_config(pex_config)):
+                print("DEBUG_PEX: load_config:line128.After failed validation check.")
+                if pex_config[u"auto_configure"]:
+                    print("DEBUG_PEX: load_config:line130. Before call to autogenerate_device_config.")
+                    pex_config[u"dev_configs"] = self.autogenerate_device_config(pex_config[u"default_ic_type"],
+                                                                                 pex_config[u"default_smbus"])
+                    print("DEBUG_PEX: load_config:line130. After call to autogenerate_device_config.")
+                    # update PEX status and number_configured_pex_ports
+                    pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
+                    pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]])
+                    if pex_config[u"num_PEX_stations"] >= pex_config[u"num_SIP_stations"]:
                         pex_config[u"pex_status"] = u"configured"
                     else:
                         pex_config[u"pex_status"] = u"unconfigured"
-                        pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
-                        pex_config[u"num_PEX_stations"] = 0
+                else:
+                    pex_config[u"pex_status"] = u"unconfigured"
+                    pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
+                    pex_config[u"num_PEX_stations"] = 0
+                    pex_config[u"dev_configs"] = []
+                print("DEBUG_PEX: load_config:line128.After failed validation check.")
+                self.save_config(pex_config)
 
-                    self.save_config(pex_config)
-
-        except IOError:  # If file does not exist or is broken create file with defaults.
-            pex_config = self.create_default_config()
-            if pex_config[u"auto_configure"]:
-                pex_config[u"dev_configs"] = self.autogenerate_device_config(pex_config[u"default_ic_type"],
-                                                                             pex_config[u"default_smbus"])
-                # update PEX status and number_configured_pex_ports
-                pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
-                pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]],
-                                                      pex_config[u"num_PEX_stations"])
-                pex_config[u"pex_status"] = u"configured"
-
-            self.save_config(pex_config)
         return pex_config
 
     # Save the pex config for this plugin to it's JSON file
     def save_config(self, pex_c):
-        # jfm HERE
         # need to validate config before saving
-        with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
-            json.dump(pex_c, f, indent=4)
+        if self.sanity_check_config(pex_c) and self.verify_hardware_config(pex_c):
+            with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
+                json.dump(pex_c, f, indent=4)
+        else:
+            pex_c[u"pex_status"] = "unconfigured"
+            print("PEX: Attempt to save bad config to json file.")
+            print("PEX:   Config data not saved to json file. Must configure first.")
+            with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
+                json.dump(pex_c, f, indent=4)
+
 
     def autogenerate_device_config(self, ic_type, smbus_id):
         '''
@@ -181,6 +193,42 @@ class PEX():
 
         return conf_d
 
+
+    def sanity_check_config(self, conf):
+        '''Perform a self_consistency check of the inter-related entries in the configuration.'''
+        valid = True
+
+        # Verify that this config satisfies the requirements of SIP config
+        if conf[u"num_SIP_stations"] != gv.sd['nst']:
+            valid = False
+            print("PEX: sanity_check_config fails!")
+            print("PEX: Number of configured SIP stations is {}".format(conf[u"num_SIP_stations"]))
+            print("PEX: Number of required SIP stations is {}".format(gv.sd["nst"]))
+
+        if conf[u"num_SIP_stations"] > conf[u"num_PEX_stations"]:
+            valid = False
+            print("PEX: Sanity check of config fails. Not enough PEX stations configured.")
+            print("PEX: SIP stations: {}   PEX stations: {}".format(conf[u"num_SIP_stations"],
+                                                                    conf[u"num_PEX_stations"]))
+        # Verify that the individual device configs agrees with the total.
+        pex_span = sum([dev[u"size"] for dev in conf[u"dev_configs"]])
+        if pex_span != conf[u"num_PEX_stations"]:
+            valid = False
+            print("PEX: Sanity check of config fails. Not enough PEX io extenders configured.")
+        return valid
+
+    def verify_hardware_config(self, conf):
+        if not len(conf[u"dev_configs"]):
+            print("PEX: verify_hardware_config fails. No devices configured.")
+            return False
+
+        valid = True
+        for i in range(len(conf[u"dev_configs"])):
+            addr = int(conf[u"dev_configs"][i][u"hw_addr"], 16)
+            if not self.verify_device_handshake(conf[u"default_smbus"], addr):
+                valid = False
+                print("PEX: verify_hardware_config -- device number {} no ACK handshake".format(i))
+        return valid
 
     def scan_for_ioextenders(self, bus_id):
         'Scan well known bus address range for supported hardware port extenders.'
