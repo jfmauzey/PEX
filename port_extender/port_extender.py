@@ -62,12 +62,7 @@ class PEX():
     def __init__(self):
         self.warn_msg = ""
         self._number_of_stations = gv.sd[u"nst"]
-        print("DEBUG_PEX: port_extender:line 66. Before load_config.")
         self.pex_c = self.load_config()
-        print("DEBUG_PEX: port_extender:line 67. After load_config.")
-
-        self._dev_configs = self.pex_c['dev_configs']  # list of preconfigured device(s)
-        self.num_devs = len(self.pex_c['dev_configs'])
         self._debug = self.pex_c['debug']
 
     def create_device(self, bus_id=1, hw_addr=u"0x20", ic_type=u"pcf8574", size=8, first=0, last=0):
@@ -81,11 +76,11 @@ class PEX():
         dev_conf[u"last"] = last  # Last SIP Station for this device
         return dev_conf
 
-    # jfm Need to figure out how auto configure changes the creation of the default config.
     def create_default_config(self):
         default_smbus = get_smbus_default()
         pex_conf = {}
-        pex_conf[u"pex_status"] = u"unconfigured"
+        pex_conf[u"pex_status"] = u"enabled" # enabled or disabled changed by PEX UI
+        pex_conf[u"config_status"] = u"unconfigured"
         pex_conf[u"warnmsg"] = ''
         pex_conf[u"num_SIP_stations"] = 0
         pex_conf[u"num_PEX_stations"] = 0
@@ -99,52 +94,54 @@ class PEX():
         pex_conf[u"debug"] = "0"
         return pex_conf
 
+    def create_device_ports(self, conf):
+        '''Create list of open smbus handles, one for each device in the configuration.'''
+        ports = []
+        for i in range(len(conf[u"dev_configs"])):
+            bus_id = conf[u"dev_configs"][i][u"bus_id"]
+            ic_type = conf[u"dev_configs"][i][u"ic_type"]
+            hw_addr = int(conf[u"dev_configs"][i][u"hw_addr"], 16)
+            port = Devices(bus_id, ic_type, hw_addr, gv.sd[u"alr"])
+            ports.append(port)
+        return ports
+
     # Read in the pex config for this plugin from it's JSON file or create a default config
     def load_config(self):
         try:
             with open(u"./data/pex_config.json", u"r") as f:
                 pex_config = json.load(f)  # Read the pex_config from file
-                print("DEBUG_PEX: load_config:line 107. Success reading json config.")
         except IOError:  # If file does not exist or is broken create file with defaults.
-            print("DEBUG_PEX: load_config:line 109. Failed reading json config.")
             pex_config = self.create_default_config()
             pex_config[u"num_SIP_stations"] = gv.sd["nst"]
-            print("DEBUG_PEX: load_config:line 113. Before calling autogenerate_device_config.")
             pex_config[u"dev_configs"] = self.autogenerate_device_config(
                    pex_config[u"default_ic_type"], pex_config[u"default_smbus"])
-            print("DEBUG_PEX: load_config:line 113. After calling autogenerate_device_config.")
             pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]])
             if pex_config[u"num_PEX_stations"] >= gv.sd["nst"]:
-                pex_config[u"pex_status"] = u"configured"
+                pex_config[u"config_status"] = u"configured"
             else:
-                pex_config[u"pex_status"] = u"unconfigured"
-            print("DEBUG_PEX: load_config:line 121. Before calling save_config.")
+                pex_config[u"config_status"] = u"unconfigured"
             self.save_config(pex_config)
-            print("DEBUG_PEX: load_config:line 123. After calling save_config.")
 
         else: # HERE validate config
-            print("DEBUG_PEX: load_config:line126. Before validation check.")
             if not (self.sanity_check_config(pex_config) and self.verify_hardware_config(pex_config)):
-                print("DEBUG_PEX: load_config:line128.After failed validation check.")
                 if pex_config[u"auto_configure"]:
-                    print("DEBUG_PEX: load_config:line130. Before call to autogenerate_device_config.")
                     pex_config[u"dev_configs"] = self.autogenerate_device_config(pex_config[u"default_ic_type"],
                                                                                  pex_config[u"default_smbus"])
-                    print("DEBUG_PEX: load_config:line130. After call to autogenerate_device_config.")
-                    # update PEX status and number_configured_pex_ports
+                    # update PEX config status and number_configured_pex_ports
                     pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
                     pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]])
                     if pex_config[u"num_PEX_stations"] >= pex_config[u"num_SIP_stations"]:
-                        pex_config[u"pex_status"] = u"configured"
+                        pex_config[u"config_status"] = u"configured"
                     else:
-                        pex_config[u"pex_status"] = u"unconfigured"
+                        pex_config[u"config_status"] = u"unconfigured"
                 else:
-                    pex_config[u"pex_status"] = u"unconfigured"
+                    pex_config[u"config_status"] = u"unconfigured"
                     pex_config[u"num_SIP_stations"] = gv.sd[u"nst"]
                     pex_config[u"num_PEX_stations"] = 0
                     pex_config[u"dev_configs"] = []
-                print("DEBUG_PEX: load_config:line128.After failed validation check.")
                 self.save_config(pex_config)
+            self.ports = self.create_device_ports(pex_config)
+            self.num_devs = len(pex_config['dev_configs'])
 
         return pex_config
 
@@ -155,7 +152,7 @@ class PEX():
             with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
                 json.dump(pex_c, f, indent=4)
         else:
-            pex_c[u"pex_status"] = "unconfigured"
+            pex_c[u"config_status"] = "unconfigured"
             print("PEX: Attempt to save bad config to json file.")
             print("PEX:   Config data not saved to json file. Must configure first.")
             with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
@@ -248,23 +245,16 @@ class PEX():
 
     def alter_SIP_gpio_behavior(self):
         'Disable SIP gpio shift register if Port Extender is configured to use smbus.'
-        if len(self._dev_configs):  # at least one interface board is configured
+        if self.pex_c[u"pex_status"] == u"enabled":
             # disable gpio_pins. We can discuss later if a mix of gpio and i2c should be possible
             gv.use_gpio_pins = False
         else:
             gv.use_gpio_pins = True
 
-    def has_config_changed(self, conf):
-        return self._dev_configs != conf['dev_configs'] or \
-               self._number_of_stations != gv.sd[u"nst"]
-
     def set_output(self, conf):
-        'Maps the SIP Station Values to the configured hardware port(s).'
-        if self.has_config_changed(conf):
-            print(u"ERROR: PEX configuration changed. Need to reconfigure.")
-            return
-        elif self.pex_c[u"pex_status"] != "run":
-            print(u'ERROR: PEX not in "run" mode. Need to reconfigure.')
+        '''Maps the SIP Station Values to the configured hardware port(s).'''
+        if self.pex_c[u"pex_status"] != "enabled":
+            print(u'ERROR: PEX not enabled. Need to reconfigure.')
             return
 
         # use srvalues to set values of configured ports.
@@ -276,11 +266,10 @@ class PEX():
         # Station_N (N=8 or 16).
         st = 0  # start index in successive slices
         sr_len = gv.sd[u"nst"]
-        device_count = 0  # jfm for debug track which device is selected
-        for dev in self._dev_configs:
-            device_count += 1
+        device_index = 0
+        for dev in self.pex_c[u"dev_configs"]:  # For each device set outputs to SIP values
             port_size = dev[u"size"]
-            hw_addr = dev["hw_addr"]
+            hw_addr = int(dev["hw_addr"], 16)
             bus_id = dev[u"bus_id"]
             ic_type = dev[u"ic_type"]
             result = 0
@@ -293,10 +282,9 @@ class PEX():
             st = st + port_size  # ready for next slice
             if st > sr_len:
                 print(f'Debug: PEX dev@0x{hw_addr:02X} has {st-sr_len} unused ports.')
-                break
-            port = Devices(bus_id, ic_type, hw_addr, alr=False)
-            port.set_output(result)
-            print("Debug: PEX set_output to {:04X} for device {}".format(result,device_count))
+            self.ports[device_index].set_output(result)
+            device_index += 1 # zero based list index + 1 == device id
+            print("Debug: PEX set_output to {:04X} for device {}".format(result,device_index))
         if st < sr_len:  # ran out of devices to map before last srvals have been output
             print(u"ERROR: PEX too many Stations configured for configured io_extender hardware.")
             print(u"           Either reduce number of stations are add/configure additional")

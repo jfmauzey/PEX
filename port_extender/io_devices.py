@@ -3,7 +3,6 @@
 
 # Python 2/3 compatibility imports
 from __future__ import print_function
-import gv  # Get access to SIP's settings, gv = global variables
 
 # import smbus required to control the io expander hardware
 SMBus_avail = True  # assume that the needed module is available
@@ -27,10 +26,11 @@ class IO_Extender():
         a weak pullup on an open collector output. This interface only
         supports using the io extenders as outputs. Initialization needs
         only to be done once."""
-        self._bus_id = bus_id
-        self._ic_type = ic_type
-        self._bus_addr = bus_addr
-        self._alr = alr
+        self.bus_id = bus_id
+        self.bus = smbus.SMBus(bus_id)
+        self.addr = bus_addr  # view by using command line "i2cdetect -y bus"
+        self.alr = alr
+        self.ic_type = ic_type
 
     def set_output(self, val):
         pass
@@ -38,20 +38,54 @@ class IO_Extender():
 class MCP23017(IO_Extender):
     '''The mcp23017 has 16 outputs that are capable of sinking or sourcing
     up to 25 mA each making it suitable to drive most relays regardless of
-    whether the control logic is active high or active low.'''
+    whether the control logic is active high or active low.
+
+    Power On initializion programs all GPIO port pins as inputs.
+    If alr (Active Low Relay) is False then preset outputs to "1"
+    If alr (Active Low Relay) is True then preset outputs to "0"
+    After presetting the outputs program the GPIO pins for Bank A
+    and Bank B to be outputs. This initializes the ports so that when
+    the outputs are driven, they drive to the correct logic level.
+    Note: writing a word of data (16 bits) addreses both bank A and bank B.'''
+
     def __init__(self, bus_id=1, bus_addr=0x20, initialize = False, alr = False):
-        super().__init__()
-        self._bus = smbus.SMBus(self._bus_id)
-        if initialize:
-            #program DDR to all outputs and set outputs to low unless alr==True
-            pass
+        #super().__init__()
+        self.bus_id = bus_id
+        self.bus = smbus.SMBus(bus_id)
+        self.addr = bus_addr  # view by using command line "i2cdetect -y bus"
+        self.alr = alr
+        self.ic_type = "mcp23017"
+        self.bankA = 0x12  # reg address for port GPIOA
+        self.bankB = 0x13  # reg address for port GPIOB
+
+        # preset the outputs before programming the DDR
+        if self.alr:                       # Low true logic
+            default_output_state = 0xffff  # all ones turns stations off
+        else:
+            default_output_state = 0x0000  # all zeroes turns stations off
+        try:
+            self.bus.write_word_data(bus_addr, self.bankA, default_output_state)
+        except Exception as e:
+            print("PEX: io_devices: failed to write to the device 0x{:02X}".format(bus_addr))
+            print(repr(e))
+
+
+        #now program the devices direction control register so that all GPIO
+        #pins are set to be oututs.
+        a = 0x00              # reg address for IO Direction control port A
+        b = 0x01              # reg address for IO Direction control port B
+        self.bus.write_byte_data(bus_addr, a, 0x00)  # Bank A set as outputs
+        self.bus.write_byte_data(bus_addr, b, 0x00)  # Bank B set as outputs
 
     def set_output(self, val):
-        if gv.sd[u"alr"] == 0:
+        if self.alr:            # Low true logic
             val = ~val & 0xffff
         else:
             val = val & 0xffff
-        print('MCP23017: setting output to 0x{:04X}'.format(val))
+
+        print('PEX: MCP23017: setting output to 0x{:04X}'.format(val))
+        #starting address for word write is same as bank A
+        self.bus.write_word_data(self.addr, self.bankA, val)
 
 class MCP2308(IO_Extender):
     '''The mcp2308 has 8 outputs that are capable of sinking or sourcing
@@ -59,13 +93,13 @@ class MCP2308(IO_Extender):
     whether the control logic is active high or active low.'''
     def __init__(self, bus_id=1, bus_addr=0x20, initialize = False, alr = False):
         super().__init__()
-        self._bus = smbus.SMBus(self._bus_id)
+        self._bus = smbus.SMBus(self.bus_id)
         if initialize:
             #program DDR to all outputs and set outputs to low unless alr==True
             pass
 
     def set_output(self, val):
-        if gv.sd[u"alr"] == 0:
+        if self.alr:            # Low true logic
             val = ~val & 0xff
         else:
             val = val & 0xff
@@ -81,7 +115,7 @@ class PCF8575(IO_Extender):
             pass
 
     def set_output(self, val):
-        if gv.sd[u"alr"] == 0:
+        if self.alr:            # Low true logic
             val = ~val & 0xffff
         else:
             val = val & 0xffff
@@ -92,13 +126,13 @@ class PCF8574(IO_Extender):
     up to 15 mA each making it suitable to drive most relays.'''
     def __init__(self, bus_id=1, bus_addr=0x20, initialize = False, alr = False):
         super().__init__()
-        self._bus = smbus.SMBus(self._bus_id)
+        self._bus = smbus.SMBus(self.bus_id)
         if initialize:
             #initialize outputs to high weakly driven
             pass
 
     def set_output(self, val):
-        if gv.sd[u"alr"] == 0:
+        if self.alr:          # Low true logic
             val = ~val & 0xff
         else:
             val = val & 0xff
