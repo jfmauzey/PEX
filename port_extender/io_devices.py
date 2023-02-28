@@ -18,7 +18,7 @@ except ModuleNotFoundError:
 class IO_Extender():
     """This is the base class for all supported io_extender hardware."""
     def __init__(self, bus_id=1, ic_type="mcp23017", bus_addr=0x20,
-                 initialize=False, alr=False):
+                 alr=False, initialize=False):
         """Must configure port hardwre. The mcp family must initialize the
         Data Direction Register (DDR) to set all ports as outputs. The pcf
         hardware has no DDR to control the port behavior. The pcf devices
@@ -41,14 +41,15 @@ class MCP23017(IO_Extender):
     whether the control logic is active high or active low.
 
     Power On initializion programs all GPIO port pins as inputs.
-    If alr (Active Low Relay) is False then preset outputs to "1"
-    If alr (Active Low Relay) is True then preset outputs to "0"
-    After presetting the outputs program the GPIO pins for Bank A
+    If alr (Active Low Relay) is False then preset outputs to "0"
+    If alr (Active Low Relay) is True then preset outputs to "1"
+    After presetting the outputs, program the GPIO pins for Bank A
     and Bank B to be outputs. This initializes the ports so that when
-    the outputs are driven, they drive to the correct logic level.
-    Note: writing a word of data (16 bits) addreses both bank A and bank B.'''
+    the outputs are driven, they drive to the correct logic level to
+    insure that all outputs are preset to turn off the attached stations.
+    Note: Writing a word of data (16 bits) addreses both bank A and bank B.'''
 
-    def __init__(self, bus_id=1, bus_addr=0x20, initialize = False, alr = False):
+    def __init__(self, bus_id=1, bus_addr=0x20, alr=False, initialize=False):
         #super().__init__()
         self.bus_id = bus_id
         self.bus = smbus.SMBus(bus_id)
@@ -91,7 +92,7 @@ class MCP2308(IO_Extender):
     '''The mcp2308 has 8 outputs that are capable of sinking or sourcing
     up to 25 mA each making it suitable to drive most relays regardless of
     whether the control logic is active high or active low.'''
-    def __init__(self, bus_id=1, bus_addr=0x20, initialize = False, alr = False):
+    def __init__(self, bus_id=1, bus_addr=0x20, alr = False, initialize = False):
         super().__init__()
         self._bus = smbus.SMBus(self.bus_id)
         if initialize:
@@ -108,7 +109,7 @@ class MCP2308(IO_Extender):
 class PCF8575(IO_Extender):
     '''The PCF8575 has 16 outputs that are capable of sinking
     up to 15 mA each making it suitable to drive most relays.'''
-    def __init__(self, bus_id=1, bus_addr=0x20, initialize = False, alr = False):
+    def __init__(self, bus_id=1, bus_addr=0x20, alr = False, initialize = False):
         super().__init__()
         if initialize:
             #initialize outputs to high weakly driven
@@ -124,7 +125,7 @@ class PCF8575(IO_Extender):
 class PCF8574(IO_Extender):
     '''The PCF8574 has 8 outputs that are capable of sinking
     up to 15 mA each making it suitable to drive most relays.'''
-    def __init__(self, bus_id=1, bus_addr=0x20, initialize = False, alr = False):
+    def __init__(self, bus_id=1, bus_addr=0x20, alr = False, initialize = False):
         super().__init__()
         self._bus = smbus.SMBus(self.bus_id)
         if initialize:
@@ -139,15 +140,15 @@ class PCF8574(IO_Extender):
         print('pcf8574: setting output to 0x{:02X}'.format(val))
 
 def Devices(bus_id=1, ic_type="pcf8574", bus_addr=0x20,
-            initialize=False, alr=False):
+            alr=False, initialize=False):
     '''This is a factory to create the interface to the io extender.'''
     if ic_type == "mcp23017":
-        return(MCP23017(bus_id, bus_addr, initialize, alr))
+        return(MCP23017(bus_id, bus_addr, alr, initialize))
     elif ic_type == "mcp2308":
-        return (MCP2308(bus_id, bus_addr, initialize, alr))
+        return (MCP2308(bus_id, bus_addr, alr, initialize))
     elif ic_type == "pcf8575":
-        return (PCF8575(bus_id, bus_addr, initialize, alr))
+        return (PCF8575(bus_id, bus_addr, alr, initialize))
     elif ic_type == "pcf8574":
-        return (PCF8574(bus_id, bus_addr, initialize, alr))
+        return (PCF8574(bus_id, bus_addr, alr, initialize))
     else:
         print(u"ERROR: PEX unsupported device type requested {}".format(ic_type))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #  pex.py -- Provides interface to io extender boards to replace the standard
 #            SIP shift register for controlling the irrigation stations.
-#  John Mauzeu 220418
+#  John Mauzey 220418
 #
 #  Hooks to two blinker events.
 #  1.set_output
@@ -16,9 +16,9 @@ from __future__ import print_function
 # standard library imports
 import json
 import platform
-from port_extender.port_extender import PEX
 
 # local module imports
+from port_extender.port_extender import PEX
 from blinker import signal
 import gv  # Get access to SIP's settings, gv = global variables
 from sip import template_render
@@ -39,7 +39,7 @@ except ModuleNotFoundError:
         pass
 
 
-# Add a new url to open the data entry page.
+# Add new url's to create the PEX plugin status and configuration views.
 # fmt: off
 urls.extend(
     [
@@ -63,8 +63,9 @@ if platform.machine() == "armv6l" or platform.machine() == "armv7l":
 # load/create pex config using json permanent storage
 pex = PEX()
 
-# pex_c contains the configuration for the hardware and the configuration of the PEX controller.
-#       Also works like a shared memory to exchange PEX UI display and update data.
+# pex_c contains the configuration for the IO extender hardware and the
+#     configuration of the PEX controller. Also works like a shared memory
+#     to exchange PEX UI display and update data.
 pex_c = pex.pex_c
 
 # disable gpio_pins. We can discuss later if a mix of gpio and i2c should be possible
@@ -79,9 +80,10 @@ else:
     gv.use_gpio_pins = True
 
 
-#### output command when signal received ####
+# output station settings to the IO Extneder(s) when signal received
 def on_zone_change(name, **kw):
-    """ Send command when core program signals a change in station state."""
+    """ Set state of all stations connected to the IO Extender(s) when core program signals
+ a change in station state."""
 
     if pex_c[u"pex_status"] != u"enabled" :
         print("PEX: Not in RUN mode.")
@@ -94,7 +96,7 @@ def on_zone_change(name, **kw):
     try:
         pex.set_output(pex_c)
     except Exception as e:
-        print(u"ERROR: PEX failed to set output.")
+        print(u"ERROR: PEX failed to set state of outputs.")
         print(repr(e))
         pex_c[u"warnmsg"] = "ERROR: Failure to set outputs. PEX needs to be configured."
         print("Debug: PEX that's ALL Folks.")
@@ -105,9 +107,11 @@ zones.connect(on_zone_change)
 
 def notify_option_change(name, **kw):
     print(u"PEX: Changed SIP Option settings. Check for need to reconfigure.")
-    if gv.sd[u"nst"] != pex_c[u"num_SIP_stations"]: #config changed
-        print(u"PEX: Num of boards changed in gv.sd")
+    if gv.sd[u"nst"] != pex_c[u"num_SIP_stations"] or \
+       gv.sd[u"alr"] != pex_c[u"SIP_alr"]:  # config changed
+        print(u"PEX: SIP options changed. Reconfiguring IO Device setting.")
         pex_c[u"num_SIP_stations"] = gv.sd[u"nst"]
+        pex_c[u"SIP_alr"] = gv.sd[u"alr"]
         if pex_c[u"auto_configure"]:
             pex_c[u"dev_configs"] = pex.autogenerate_device_config(pex_c[u"default_ic_type"],
                                                                    pex_c[u"default_smbus"])

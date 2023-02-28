@@ -9,7 +9,7 @@ import math
 import json
 
 import gv  # Get access to SIP's settings, gv = global variables
-from .io_devices import Devices
+from io_devices import Devices
 
 # import smbus required to control the io port hardware
 SMBus_avail = True  # assume that the needed module is available
@@ -39,21 +39,25 @@ def get_smbus_default():
         with open("/proc/meminfo", "r") as f:
             r = f.readline()  # every line has three fields
             while r:
-                if r.index(u"MemTotal") >= 0:
-                    t, r, m = r.split()
-                    ram_size = int(r)
-                    if m == "kB":
-                        ram_size *= 1024
-                    else:
-                        print("ERROR: configuring SMBus. Unknown platform.")
-                    break
+                try:
+                    if r.index(u"MemTotal") >= 0:
+                        t, r, m = r.split()
+                        ram_size = int(r)
+                        if m == "kB":
+                            ram_size *= 1024
+                        else:
+                            print("ERROR: configuring SMBus. Unknown platform.")
+                        break
+                except ValueError:
+                    pass
                 r = f.readline()
         if ram_size > 256 * 1024:  # All pi's with more than 256 kB RAM use smbus 1
             default_smbus = 1
         else:
             default_smbus = 0  # Early pi's with 26 pin connectors only have 256 kB RAM use smbus 0
     else:
-        default_smbus = 1
+        default_smbus = 1  # SMBus_avail prevents smbus operations if no library loaded.
+                           # SIP UI expects default_smbus to be an integer, not None.
     return default_smbus
 
 
@@ -85,6 +89,7 @@ class PEX():
         pex_conf[u"num_SIP_stations"] = 0
         pex_conf[u"num_PEX_stations"] = 0
         pex_conf[u"auto_configure"] = 1
+        pex_conf[u"SIP_alr"] = gv.sd['alr']
         pex_conf[u"dev_configs"] = []
         pex_conf[u"discovered_devices"] = []
         pex_conf[u"default_smbus"] = default_smbus
@@ -140,23 +145,22 @@ class PEX():
                     pex_config[u"num_PEX_stations"] = 0
                     pex_config[u"dev_configs"] = []
                 self.save_config(pex_config)
-            self.ports = self.create_device_ports(pex_config)
-            self.num_devs = len(pex_config['dev_configs'])
+        pex_config[u"SIP_alr"] = gv.sd['alr']
+        self.ports = self.create_device_ports(pex_config)
+        self.num_devs = len(pex_config['dev_configs'])
 
         return pex_config
 
     # Save the pex config for this plugin to it's JSON file
     def save_config(self, pex_c):
         # need to validate config before saving
-        if self.sanity_check_config(pex_c) and self.verify_hardware_config(pex_c):
-            with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
-                json.dump(pex_c, f, indent=4)
-        else:
+        if not (self.sanity_check_config(pex_c) and self.verify_hardware_config(pex_c)):
             pex_c[u"config_status"] = "unconfigured"
             print("PEX: Attempt to save bad config to json file.")
             print("PEX:   Config data not saved to json file. Must configure first.")
-            with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
-                json.dump(pex_c, f, indent=4)
+        pex_c[u"SIP_alr"] = gv.sd['alr']  # can be changed by SIP option 'alr'
+        with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
+            json.dump(pex_c, f, indent=4)
 
 
     def autogenerate_device_config(self, ic_type, smbus_id):
@@ -230,8 +234,8 @@ class PEX():
     def scan_for_ioextenders(self, bus_id):
         'Scan well known bus address range for supported hardware port extenders.'
         i2c_bus = smbus.SMBus(int(bus_id))
-        i2c_start_addr = 0x20  # beginning i2c address for MCP23017 and pcf857x
-        i2c_end_addr = 0x27  # last possible i2c address for MCP23017 and pcf857x
+        i2c_start_addr = 0x20  # beginning i2c address for MCP230x and pcf857x
+        i2c_end_addr = 0x27  # last possible i2c address for MCP230x and pcf857x
         return i2c_scan(i2c_bus, i2c_start_addr, i2c_end_addr)
 
 
