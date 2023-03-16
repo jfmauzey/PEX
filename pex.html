@@ -4,207 +4,23 @@ $var title: $_(u'SIP PEX Plugin')
 $var page: pex
 
 <script>
-
-    // Initialize behaviors
-    jQuery(document).ready(function(){
-
-        jQuery("#cSubmit").click(function() {     	
-        	jQuery("#clic").submit();
-        });
-        jQuery("button#cCancel").click(function(){
-            window.location= "/";
-        });
-        jQuery("#cSubmitt").click(function() {     	
-        	jQuery("#clict").submit();
-        });
-        jQuery("#cSubmitscan").click(function() {     	
-        	jQuery("#clicscan").submit();
-        });
-        jQuery("button#docButton").click(function(){
-            window.open("https://gitlab.com/seventer/pcf857x_plugin_sip/-/blob/main/doc/pcf857x-doc.md", "_blank");
-        });
-    });
 </script>
-
-<style>.columnName { text-align: center; }</style>
-<style>.collapsetable { border-collapse: collapse; border: 3px solid blue; }</style>
 
 <div id="plugin">
 <!--     <div class="title">Command Line Control -->
 <!--     <button class="execute" id="docButton" type="button" >$_('Help')</button> -->
 <!--     </div> -->
-    <div>
-    <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')
-    <button class="execute" id="docButton" type="button">$_(u'Help')</button></div>
+    <div class="pex-home">
+        <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')</div>
 
-    <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
-    <p>Supported hardwre: pcf8574 (8 ports), pc8575 (16 ports), mcp2308 (8 ports), mcp23017 (16 ports).</p>
-    <p> The maximum number of devices (any combination) cannot exceed eight.</p>
-    <p>See help page for supported options or ask for support on the SIP forum.</p>
-    <hr>
-
-    <h2>Status:  ${pex_c[u"pex_status"]}</h2>
-
-    $if u"warnmsg" in pex_c:
-        $if len(pex_c['warnmsg'])>0:
-            <p></p>
-            <h2>$pex_c['warnmsg']</h2>
-    <hr>
-
-    <div id="current_config">
-    <div class="title">$_(u'Port Extender -- Current Configuration')</div>
-    $ num_sip_ports = pex_c[u"num_SIP_stations"]
-    $ num_pex_ports = pex_c[u"num_PEX_stations"]
-    <p>Total SIP Stations: $num_sip_ports</p>
-    $if num_sip_ports > num_pex_ports:
-        <p>SIP Stations remaining to be configured: ${num_sip_ports - num_pex_ports}.</p>
-    $else:
-        <p>All SIP Stations configured.</p>
-        $if num_sip_ports < num_pex_ports:
-            <p>PEX stations unassigned: ${num_pex_ports - num_sip_ports}.</p>
-    $if num_sip_ports > 0:
-        <table class="collapsetable" border="1">
-            <tr>
-                <th>$_(u'Port ID')</th>
-                <th>$_(u'SMBus')</th>
-                <th>$_(u'Port Addr')</th>
-                <th>$_(u'IC Type')</th>
-                <th>$_(u'Spanned SIP Stations')</th>
-            </tr>
-        $for port_id in range(0,len(pex_c['dev_configs'])):
-            $ first = pex_c[u"dev_configs"][port_id][u"first"] - 1
-            $ last = min(pex_c[u"dev_configs"][port_id][u"last"], num_sip_ports) - 1
-            $ SIP_span = u"{} thru {}".format(gv.snames[first], gv.snames[last])
-            <tr>
-                <td style="text-align: center">${port_id+1}</td>
-                <td style="text-align: center">${pex_c['dev_configs'][port_id]['bus_id']}</td>
-                <td style="text-align: center">${pex_c['dev_configs'][port_id]['hw_addr']}</td>
-                <td style="text-align: center">${pex_c['dev_configs'][port_id]['ic_type']}</td>
-                <td style="text-align: center">${SIP_span}</td>
-            </tr>
-        </table>
-    $else:
-        <table class="collapsetable" border="1">
-            <tr>
-                <td>$_(u"No previously configured devices.")</td>
-            </tr>
-        </table>
-    <br>
-    </div>
-    </div>
-    <br><hr>
-    <div id="edit_config">
-    <div class="title">$_(u'Edit Port Extender Device Configuration')</div>
-    <form id="clic" name="clic" action="/pexu" method="get">
-        
-        <table id="optionList">
-            <tr>
-                <td style='text-transform: none;'>$_(u'SMBus id:')</td>
-                <td><input type="number" min="0" max="1" name="default_smbus" value="${pex_c['default_smbus']}"> (usually 1)</td>
-            </tr>
-            <tr><td colspan="4"><hr></td></tr>
-            <tr>
-                <td style='text-transform: none;'>$_(u'IC Type: '):</td>
-                <td><div class="option" title="IC Type">
-                     <label>
-                         <span class="optLabel">IC Type</span>
-                         <select name="ic_type">
-                            <option selected="" value="mcp23017">Default</option>
-                            <option value="pcf8574">pcf8574 (8-bit)</option>
-                            <option value="pcf8575">pcf8575 (16-bit)</option>
-                            <option value="mcp2308">mcp2308 (8-bit)</option>
-                            <option value="mcp23017">mcp23017 (16-bit)</option>
-                        </select>
-                    </label>
-                </div>
-                </td>
-            </tr>
-        </table>
+        <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
+        <p>Supported hardwre: pcf8574 (8 ports), pc8575 (16 ports), mcp2308 (8 ports), mcp23017 (16 ports).</p>
+        <p> The maximum number of devices (any combination) cannot exceed eight.</p>
+        <p>See help page for supported options or ask for support on the SIP forum.</p>
         <hr>
-        <table>
-            <tr>
-                <th class="stationNumber">$_(u'Port')</th>
-                <th class="columnName">$_(u'0xAddr')</th>
-            </tr>
-            $for dev_id in range(0, len(pex_c['dev_configs'])):
-                    <tr>
-                        <td class="BoardID">${dev_id + 1}</td>
-                        <td class="command">
-                            <input type="text" size="10" value="${pex_c['dev_configs'][dev_id]['hw_addr'] if dev_id < len(pex_c['dev_configs']) else ''}" id="con${dev_id}" name="con${dev_id}">
-                        </td>                       
-                    </tr>
-        </table>
 
-            $for dev_id in range(0, len(pex_c['dev_configs'])):
-            	<input type="hidden" id="i${dev_id}" name="i${dev_id}"/>
-        
-        <input type="checkbox" name="debug" id="debug" ${"checked" if pex_c['debug' ] =="1" else ""}>
-        <label for="debug">log extended information</label>
-        
-    </form>
-            <p></p>
+        <h2>Status:  ${pex_c[u"pex_status"]}</h2>
+
+        <br><hr>
     </div>
-<div class="controls">
-    <button id="cNew_Device" class="New_Device"><b>$_(u'New_Device')</b></button>
-    <button id="cDel_Device" class="Del_Device"><b>$_(u'Del_Device')</b></button>
-    <button id="cSubmit" class="submit"><b>$_(u'Submit')</b></button>
-    <button id="cCancel" class="cancel danger">$_(u'Cancel')</button>
-</div>
-
-<br><hr>
-
-<div id="tools">
-    <div class="title">$_(u'Search for devices')</div>
-    
-    <div class="controls">
-        <button id="cSubmitscan" class="submitscan"><b>$_(u'Scan devices')</b></button>
-    </div>
-    
-    <form id="clicscan" name="clicscan" action="/pex_scan" method="GET">
-        
-        $if len(pex_c['discovered_devices'])>0:
-            <h4>$_(u'Devices found')</h4>
-            <table class="collapsetable" border="1" id=deviceresults>
-                <tr>
-                    $for i in pex_c['discovered_devices']:
-                        <td style="padding:3px">${hex(int(i))}</td>
-                </tr>
-            </table>
-        $else:
-            <input type="hidden" id="scanme" name="scanme" value="true"/>
-    </form>
-    <br>
-    <div class="title">$_(u'Advanced (i2c) tools')</div> see helppage
-    <form id="clict" name="clict" action="/pext" method="POST">
-        <table id="smbusCommand">
-            <tr>
-                <td>smbus</td>
-                <td>0xAddr</td>
-                <td>0xData</td>
-            </tr>
-            <tr>
-                <td>
-                    <input type="text" size="2" value="1" name="tst_smbus">
-                </td>
-                <td>
-                    <input type="text" size="4" value="${hex(int(pex_c['discovered_devices'][0])) if len(pex_c['discovered_devices']) else 'None!'}" name="tst_addr">
-                </td>
-                <td>
-                    <input type="text" size="4" value="0x08" name="tst_value">
-                </td>
-                <td>0x00 = all On  0xFF = all off</td>
-            </tr>
-
-        </table>
-    </form>
-</div>
-
-<div class="controls">
-    <button id="cSubmitt" class="submitt"><b>$_(u'Set')</b></button>
-</div>
-
-<p></p>
-
-<p></p>
-
 </div>
