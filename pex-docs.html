@@ -12,40 +12,67 @@ Documentation</H1>
 <H2 CLASS="western"><A NAME="about-the-pex-plugin"></A>About the
 PEX Plugin</H2>
 <P>The PEX plugin is used to replace the default SIP shift register.
+PEX allows up to 128 stations to be controlled by the SIP irrigation controller.
 </P>
-<P>The plugin includes the folowing files:</P>
+<P>
+Supported hardware: pcf8574 (8 ports), pc8575 (16 ports), mcp2308 (8 ports), mcp23017 (16 ports).<BR>
+It also provides a simulated bus that allows for test/demo of the PEX plugin.
+<P>
+The maximum number of devices (any combination) cannot exceed eight.
+</P>
+<HR>
+<P>
+When Autoconfigure is enabled, PEX scans the I2C bus for devices that are reported to be attached to the bus.
+All devices found are assumed to be of the same type. The discovered devices are sequentially mapped to the SIP
+stations using the default IC type.
+</P>
+</P>
+<H2 CLASS="western"><A NAME="about-the-pex-files"></A>
+The plugin includes the folowing files:</H2>
 <UL>
-	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.py</STRONG><BR>The
-	python program controls the ports. Location:
-	<STRONG>SIP/plugins</STRONG></P>
-	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.html</STRONG><BR>A
-	web.py template that provides a user interface for the plugin. Two
-	dictionaries are used to pass and syncronize data between the UI
-    and the PEX runtime environment: pex.pex_conf, gv. Location:
-	<STRONG>SIP/templates</STRONG></P>
+	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.py</STRONG><BR>
+		This python program provides the entry point for the PEX plugin.
+		It provides the fiddly bits needed to integrate PEX into the SIP UI.<BR>
+		Location: <STRONG>SIP/plugins</STRONG></P>
+	<LI><P STYLE="margin-bottom: 0in"><STRONG>port_extender.py</STRONG><BR>
+		Python module that creates the model for the PEX controller and
+	    provides the runtime state.<BR>
+		Location: <STRONG>SIP/plugins/port_extender</STRONG></P>
+	<LI><P STYLE="margin-bottom: 0in"><STRONG>io_devices.py</STRONG><BR>
+		Python module that provides the interface used to control the devices
+	    attached to the I2C bus. Four device types are supported:<BR>
+		pcf8574 pcf8575 mcp2308 mcp23017<BR>
+		Location: <STRONG>SIP/plugins/io_devices</STRONG></P>
+	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.html</STRONG><BR>
+        This file is a web.py template that provides a user interface for the plugin.
+	    It generates the HTML data that is displayed on the PEX home page. Two
+        dictionaries are used to pass and synchronize data between the UI
+        and the PEX runtime environment: pex.pex_conf, gv.<BR>
+	    Location: <STRONG>SIP/templates</STRONG></P>
 	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex-docs.html</STRONG><BR>This
-	file. Provides documentation for the pex plugin including any special hardware needed and set up instructions. Location:
-	<STRONG>SIP/static/docs/plugins</STRONG></P>
+	    file. Provides documentation for the pex plugin including any special
+	    hardware needed and set up instructions.<BR>
+	    Location: <STRONG>SIP/static/docs/plugins</STRONG></P>
 	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.manifest</STRONG><BR>A
-	text file containing a list of each of the plugin&rsquo;s
-	files with the path to it&rsquo;s location. The manifest is used by
-	the plugin manager to install and uninstall the plugin. Location:
-    <STRONG>SIP/plugins/manifest</STRONG></P>
+	     text file containing a list of each of the plugin&rsquo;s
+	     files with the path to it&rsquo;s location. The manifest is used by
+	     the plugin manager to install and uninstall the plugin.<BR>
+         Location: <STRONG>SIP/plugins/manifest</STRONG></P>
 	<LI><P><STRONG>pex.json</STRONG><BR>Configuration file containing
-	persistant storage of port extender settings. It is created by the plugin
-	the first time it is run and is not installed with the other files.
-	Location: <STRONG>SIP/data</STRONG></P>
+	     persistant storage of port extender settings. It is created by the plugin
+	     the first time it is run and is not installed with the other files.<BR>
+	     Location: <STRONG>SIP/data</STRONG></P>
 </UL>
 <H2 CLASS="western"><A NAME="using-the-pex-plugin"></A>Using the
 pex plugin</H2>
 <P>This plugin is disabled by default. If you are reading this, the
-pex plugin is probably enabled on your system. Otherwise you can
+PEX plugin is probably enabled on your system. Otherwise you can
 enable it using the plugin manager or by setting the group
 permissions of the <STRONG>pex.py</STRONG> file to <STRONG>executable</STRONG>.
 Once it is enabled, and the SIP program has been restarted, You can
 verify it is working by selecting it from the PLUGINS drop down menu
 of the main program&rsquo;s web interface. You should be taken to the
-plugin&rsquo;s Settings page.
+PEX home page.
 </P>
 </BODY>
 </HTML>
