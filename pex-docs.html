@@ -1,0 +1,51 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=windows-1252">
+	<TITLE>pex-docs.html</TITLE>
+	<META NAME="viewport" CONTENT="width=device-width, initial-scale=1.0">
+    <link href="../../themes/basic/base.css" rel="stylesheet" type="text/css"/>
+</HEAD>
+<BODY LANG="en-US" BGCOLOR="#ffffff" DIR="LTR" STYLE="border: none; padding: 0in">
+<H1><A NAME="pex-plugin-documentation"></A>PEX Plugin
+Documentation</H1>
+<H2 CLASS="western"><A NAME="about-the-pex-plugin"></A>About the
+PEX Plugin</H2>
+<P>The PEX plugin is used to replace the default SIP shift register.
+</P>
+<P>The plugin includes the folowing files:</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.py</STRONG><BR>The
+	python program controls the ports. Location:
+	<STRONG>SIP/plugins</STRONG></P>
+	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.html</STRONG><BR>A
+	web.py template that provides a user interface for the plugin. Two
+	dictionaries are used to pass and syncronize data between the UI
+    and the PEX runtime environment: pex.pex_conf, gv. Location:
+	<STRONG>SIP/templates</STRONG></P>
+	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex-docs.html</STRONG><BR>This
+	file. Provides documentation for the pex plugin including any special hardware needed and set up instructions. Location:
+	<STRONG>SIP/static/docs/plugins</STRONG></P>
+	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.manifest</STRONG><BR>A
+	text file containing a list of each of the plugin&rsquo;s
+	files with the path to it&rsquo;s location. The manifest is used by
+	the plugin manager to install and uninstall the plugin. Location:
+    <STRONG>SIP/plugins/manifest</STRONG></P>
+	<LI><P><STRONG>pex.json</STRONG><BR>Configuration file containing
+	persistant storage of port extender settings. It is created by the plugin
+	the first time it is run and is not installed with the other files.
+	Location: <STRONG>SIP/data</STRONG></P>
+</UL>
+<H2 CLASS="western"><A NAME="using-the-pex-plugin"></A>Using the
+pex plugin</H2>
+<P>This plugin is disabled by default. If you are reading this, the
+pex plugin is probably enabled on your system. Otherwise you can
+enable it using the plugin manager or by setting the group
+permissions of the <STRONG>pex.py</STRONG> file to <STRONG>executable</STRONG>.
+Once it is enabled, and the SIP program has been restarted, You can
+verify it is working by selecting it from the PLUGINS drop down menu
+of the main program&rsquo;s web interface. You should be taken to the
+plugin&rsquo;s Settings page.
+</P>
+</BODY>
+</HTML>

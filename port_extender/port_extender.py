@@ -7,11 +7,16 @@ from __future__ import print_function
 # standard library imports
 import math
 import json
+import platform
 
-import gv  # Get access to SIP's settings, gv = global variables
-from io_devices import Devices
+# local library imports
+import gv  # Access to SIP global variables
 
-# import smbus required to control the io port hardware
+# PEX module imports
+from port_extender.io_devices import IO_Device, i2c_scan
+
+# The smbus module is required to control io port hardware.
+# If module is missing, only simulated devices are supported.
 SMBus_avail = True  # assume that the needed module is available
 try:
     import smbus
@@ -21,92 +26,84 @@ except ModuleNotFoundError:
     except ModuleNotFoundError:
         SMBus_avail = False  # missing smbus module
 
-# smbus tool
-def i2c_scan(i2c_bus, start_addr = 0x08, end_addr = 0xF7):
-    devices_discovered = []
-    for i in range(start_addr, end_addr+1):
-        try:
-            i2c_bus.write_quick(i)
-            devices_discovered.append(i)
-        except OSError as e:
-            pass  # no device responded
-    return devices_discovered  # list of addresses from successful handshake ACK
 
 # Use installed RAM size to determine which smbus to use.
 def get_smbus_default():
-    if SMBus_avail:
+    # This function only works for raspberry pi.
+    if platform.machine() in ("armv6l", "armv7l"):  # machine is Raspberry pi
         ram_size = 0
-        with open("/proc/meminfo", "r") as f:
+        with open("/proc/meminfo", "r") as f:  # Privileged file open
             r = f.readline()  # every line has three fields
             while r:
                 try:
-                    if r.index(u"MemTotal") >= 0:
-                        t, r, m = r.split()
-                        ram_size = int(r)
-                        if m == "kB":
+                    if "MemTotal" in r:
+                        t, d, u = r.split()  # Title, Data, Units
+                        ram_size = int(d)
+                        if u == "kB":
                             ram_size *= 1024
                         else:
-                            print("ERROR: configuring SMBus. Unknown platform.")
+                            print("ERROR: configuring SMBus ID. Unknown platform.")
                         break
                 except ValueError:
                     pass
                 r = f.readline()
         if ram_size > 256 * 1024:  # All pi's with more than 256 kB RAM use smbus 1
-            default_smbus = 1
+            default_smbus = "1"
         else:
-            default_smbus = 0  # Early pi's with 26 pin connectors only have 256 kB RAM use smbus 0
+            default_smbus = "0"  # Early pi's with 26 pin connectors only have 256 kB RAM use smbus 0
     else:
-        default_smbus = 1  # SMBus_avail prevents smbus operations if no library loaded.
-                           # SIP UI expects default_smbus to be an integer, not None.
+        default_smbus = "SimulatedBus"
+
+    if not SMBus_avail:
+        default_smbus = "SimulatedBus"
     return default_smbus
 
 
-class PEX():
+class PEX:
 
     def __init__(self):
-        self.warn_msg = ""
-        self._number_of_stations = gv.sd[u"nst"]
+        self.ports = []  # list of io-extender devices
         self.pex_c = self.load_config()
+        self.warn_msg = ""
         self._debug = self.pex_c['debug']
 
-    def create_device(self, bus_id=1, hw_addr=u"0x20", ic_type=u"pcf8574", size=8, first=0, last=0):
+    def create_device(self, bus_id="1", hw_addr=u"0x20", ic_type=u"pcf8574",
+                      size=8, first=0, last=0):
         """Creates device using default parameters if none are specified."""
-        dev_conf = {}
-        dev_conf[u"bus_id"] = bus_id
-        dev_conf[u"hw_addr"] = hw_addr
-        dev_conf[u"ic_type"] = ic_type
-        dev_conf[u"size"] = size
-        dev_conf[u"first"] = first  # First SIP Station for this device
-        dev_conf[u"last"] = last  # Last SIP Station for this device
-        return dev_conf
+        return {u"bus_id": bus_id, u"hw_addr": hw_addr, u"ic_type": ic_type,
+                u"size": size, u"first": first, u"last": last}
 
     def create_default_config(self):
-        default_smbus = get_smbus_default()
         pex_conf = {}
-        pex_conf[u"pex_status"] = u"enabled" # enabled or disabled changed by PEX UI
-        pex_conf[u"config_status"] = u"unconfigured"
-        pex_conf[u"warnmsg"] = ''
-        pex_conf[u"num_SIP_stations"] = 0
-        pex_conf[u"num_PEX_stations"] = 0
-        pex_conf[u"auto_configure"] = 1
-        pex_conf[u"SIP_alr"] = gv.sd['alr']
-        pex_conf[u"dev_configs"] = []
-        pex_conf[u"discovered_devices"] = []
-        pex_conf[u"default_smbus"] = default_smbus
-        pex_conf[u"supported_hardware"] = [u'pcf8574', u'pcf8575', u'mcp2308', u'mcp23017']
-        pex_conf[u"default_ic_type"] = u'mcp23017'
-        pex_conf[u"ic_type"] = u'mcp23017'
         pex_conf[u"debug"] = "0"
+        pex_conf[u"pex_status"] = u"disabled"  # enabled or disabled changed by PEX UI
+        pex_conf[u"config_status"] = u"unconfigured"
+        pex_conf[u"auto_configure"] = 0
+        pex_conf[u"default_smbus"] = get_smbus_default()
+        pex_conf[u"warnmsg"] = ''
+        pex_conf[u"num_SIP_stations"] = gv.sd["nst"]
+        pex_conf[u"SIP_alr"] = gv.sd['alr']
+        pex_conf[u"num_PEX_stations"] = 0
+        pex_conf[u"supported_hardware"] = [u'pcf8574', u'pcf8575', u'mcp2308', u'mcp23017']
+        pex_conf[u"dev_configs"] = []  # List of installed io device extenders
+        pex_conf[u"discovered_devices"] = []
+        pex_conf[u"default_ic_type"] = u'mcp23017'  # Used by autoconfig
+        pex_conf[u"ic_type"] = u'mcp23017'
         return pex_conf
 
     def create_device_ports(self, conf):
-        '''Create list of open smbus handles, one for each device in the configuration.'''
+        """
+        Create list of io devices. The configured order of the devices
+        maps the SIP stations to actual hardware ports. The first device
+        listed in the pex_conf['dev_configs'] maps the first slice of
+        SIP stations to the io hardware.
+        """
         ports = []
         for i in range(len(conf[u"dev_configs"])):
             bus_id = conf[u"dev_configs"][i][u"bus_id"]
             ic_type = conf[u"dev_configs"][i][u"ic_type"]
             hw_addr = int(conf[u"dev_configs"][i][u"hw_addr"], 16)
-            port = Devices(bus_id, ic_type, hw_addr, gv.sd[u"alr"])
+            port = IO_Device(bus_id, ic_type, hw_addr, gv.sd[u"alr"])
             ports.append(port)
         return ports
 
@@ -117,9 +114,8 @@ class PEX():
                 pex_config = json.load(f)  # Read the pex_config from file
         except IOError:  # If file does not exist or is broken create file with defaults.
             pex_config = self.create_default_config()
-            pex_config[u"num_SIP_stations"] = gv.sd["nst"]
             pex_config[u"dev_configs"] = self.autogenerate_device_config(
-                   pex_config[u"default_ic_type"], pex_config[u"default_smbus"])
+                pex_config[u"default_ic_type"], pex_config[u"default_smbus"])
             pex_config[u"num_PEX_stations"] = sum([dev[u"size"] for dev in pex_config[u"dev_configs"]])
             if pex_config[u"num_PEX_stations"] >= gv.sd["nst"]:
                 pex_config[u"config_status"] = u"configured"
@@ -127,7 +123,7 @@ class PEX():
                 pex_config[u"config_status"] = u"unconfigured"
             self.save_config(pex_config)
 
-        else: # HERE validate config
+        else:  # HERE validate config
             if not (self.sanity_check_config(pex_config) and self.verify_hardware_config(pex_config)):
                 if pex_config[u"auto_configure"]:
                     pex_config[u"dev_configs"] = self.autogenerate_device_config(pex_config[u"default_ic_type"],
@@ -147,7 +143,6 @@ class PEX():
                 self.save_config(pex_config)
         pex_config[u"SIP_alr"] = gv.sd['alr']
         self.ports = self.create_device_ports(pex_config)
-        self.num_devs = len(pex_config['dev_configs'])
 
         return pex_config
 
@@ -162,12 +157,11 @@ class PEX():
         with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
             json.dump(pex_c, f, indent=4)
 
-
     def autogenerate_device_config(self, ic_type, smbus_id):
-        '''
+        """
         The required number of io extender devices must be present in the
         scan results to successfully create the SIP to Port mapping.
-         '''
+         """
         discovered_devices = self.scan_for_ioextenders(smbus_id)
 
         if ic_type == u"pcf8574" or ic_type == u"mcp2308":
@@ -179,24 +173,24 @@ class PEX():
         num_devs_needed = math.ceil(srlen / port_span)
         if num_devs_needed > len(discovered_devices):
             print("ERROR: PEX cannot auto configure due to lack of detected io extenders.")
-            print("       PEX requires {} io extender devices: Detected = {}".format(num_devs_needed, len(discovered_devices)))
+            print("       PEX requires {} io extender devices: Detected = {}".format(num_devs_needed,
+                                                                                     len(discovered_devices)))
             print("       PEX must be configured and io extender devices must be detected.")
             return []  # no devices could use simulated devices
 
-        conf_d = []  # list of auto configured io extender devices
+        conf_d = []  # list of autoconfigured io extender devices
         for port_id in range(num_devs_needed):  # port_id is zero based index for device mapping
             # create each device
-            first = port_id * port_span + 1
-            last = (port_id + 1) * port_span
-            hw_addr = hex(discovered_devices[port_id])
-            conf_d.append(self.create_device(bus_id = smbus_id, hw_addr = hw_addr, ic_type = ic_type,
-                                             size = port_span, first = first, last = last))
+            first = port_id * port_span    # Map span to SIP Station index -- One-based
+            last = (port_id + 1) * port_span   # Only true when port_span is constant
+            hw_addr = hex(discovered_devices[port_id])  # In discovered order
+            conf_d.append(self.create_device(bus_id=smbus_id, hw_addr=hw_addr, ic_type=ic_type,
+                                             size=port_span, first=first, last=last))
 
         return conf_d
 
-
     def sanity_check_config(self, conf):
-        '''Perform a self_consistency check of the inter-related entries in the configuration.'''
+        """Perform a self_consistency check of the inter-related entries in the configuration."""
         valid = True
 
         # Verify that this config satisfies the requirements of SIP config
@@ -233,49 +227,56 @@ class PEX():
 
     def scan_for_ioextenders(self, bus_id):
         'Scan well known bus address range for supported hardware port extenders.'
-        i2c_bus = smbus.SMBus(int(bus_id))
         i2c_start_addr = 0x20  # beginning i2c address for MCP230x and pcf857x
         i2c_end_addr = 0x27  # last possible i2c address for MCP230x and pcf857x
-        return i2c_scan(i2c_bus, i2c_start_addr, i2c_end_addr)
-
+        return i2c_scan(bus_id, i2c_start_addr, i2c_end_addr)
 
     def verify_device_handshake(self, bus_id, bus_addr: int):  # jfm static typing
-        'Use SMbus ACK protocol for handshake to verify connectivity.'
-        i2c_bus = smbus.SMBus(int(bus_id))
-        i2c_start_addr = bus_addr  #  device to verify
+        """Use SMbus ACK protocol for handshake to verify connectivity."""
+        i2c_start_addr = bus_addr  # device to verify
         i2c_end_addr = bus_addr
-        result = len(i2c_scan(i2c_bus, i2c_start_addr, i2c_end_addr)) != 0
+        result = len(i2c_scan(bus_id, i2c_start_addr, i2c_end_addr)) != 0
         return result
 
     def alter_SIP_gpio_behavior(self):
-        'Disable SIP gpio shift register if Port Extender is configured to use smbus.'
+        """Disable SIP gpio shift register if Port Extender is configured to use smbus."""
         if self.pex_c[u"pex_status"] == u"enabled":
             # disable gpio_pins. We can discuss later if a mix of gpio and i2c should be possible
             gv.use_gpio_pins = False
         else:
             gv.use_gpio_pins = True
 
-    def set_output(self, conf):
+    def set_output(self):
         '''Maps the SIP Station Values to the configured hardware port(s).'''
         if self.pex_c[u"pex_status"] != "enabled":
             print(u'ERROR: PEX not enabled. Need to reconfigure.')
             return
 
-        # use srvalues to set values of configured ports.
         print("DeBug: PEX set outputs for {} ports.".format(gv.sd[u"nst"]))
 
+        # use srvalues to set values of configured ports.
         # Map srvalues to the device(s). The order that the devices are
         # listed in the config are the order for mapping. The first device
         # maps the first DeviceSize (8 or 16) ports to Station_1 through
         # Station_N (N=8 or 16).
+        #
+        # Should look like:
+        #   for dev in self.pex_c["dev_configs"]:
+        #     slice_for_device = gv.srvals[dev.first, dev.last]
+        #     res = 0
+        #     for i,v in enuerate(slice_for_device[::-1]):  # reverse MSB of 16 or 8 bits
+        #                                                   # SIP Station 1 --> first port output P1
+        #                                                   # SIP Station('last') --> last port output P[ 8 | 16 ]
+        #        if v: res |= 1<<i
+        #     self.port.set_output(res]
+        #
+        # NOTE: the following code maps SIP Station 1 to the most significant bit of
+        #       the data written to set the output value of the port register.
         st = 0  # start index in successive slices
-        sr_len = gv.sd[u"nst"]
+        sr_len = gv.sd[u"nst"]  # could use len(gv.srvals)
         device_index = 0
         for dev in self.pex_c[u"dev_configs"]:  # For each device set outputs to SIP values
             port_size = dev[u"size"]
-            hw_addr = int(dev["hw_addr"], 16)
-            bus_id = dev[u"bus_id"]
-            ic_type = dev[u"ic_type"]
             result = 0
             n = 1
             stp = min(st + port_size, sr_len)  # last element in slice
@@ -285,12 +286,12 @@ class PEX():
                 n *= 2  # arithmetic shift left one bit
             st = st + port_size  # ready for next slice
             if st > sr_len:
-                print(f'Debug: PEX dev@0x{hw_addr:02X} has {st-sr_len} unused ports.')
+                hw_addr = int(dev["hw_addr"], 16)
+                print(f'Debug: PEX dev@0x{hw_addr:02X} has {st - sr_len} unused ports.')
             self.ports[device_index].set_output(result)
-            device_index += 1 # zero based list index + 1 == device id
-            print("Debug: PEX set_output to {:04X} for device {}".format(result,device_index))
+            device_index += 1  # zero based list index + 1 == device id
+            print("Debug: PEX set_output to {:04X} for device {}".format(result, device_index))
         if st < sr_len:  # ran out of devices to map before last srvals have been output
             print(u"ERROR: PEX too many Stations configured for configured io_extender hardware.")
             print(u"           Either reduce number of stations are add/configure additional")
             print(u"           io_extender hardware.")
-

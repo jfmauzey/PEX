@@ -1,9 +1,22 @@
-$def with(pex_c)
+$def with(pex_c, gv)
 
 $var title: $_(u'SIP PEX Plugin')
 $var page: pex
 
 <script>
+    // Initialize behaviors
+    jQuery(document).ready(function(){
+
+        //jQuery("#cSubmit").click(function() {
+        //    jQuery("#pluginForm").submit();
+        //});
+        //jQuery("button#cCancel").click(function(){
+        //    window.location="/";
+        //});
+        jQuery("button#docButton").click(function(){
+            window.open("static/docs/plugins/pex-docs.html", "_blank");
+       });
+    });
 </script>
 
 <div id="plugin">
@@ -11,15 +24,15 @@ $var page: pex
 <!--     <button class="execute" id="docButton" type="button" >$_('Help')</button> -->
 <!--     </div> -->
     <div class="pex-home">
-        <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')</div>
+        <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')
+        <button class="execute" id="docButton" type="button" >$_(u'Help')</button></div>
 
         <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
         <p>Supported hardwre: pcf8574 (8 ports), pc8575 (16 ports), mcp2308 (8 ports), mcp23017 (16 ports).</p>
         <p> The maximum number of devices (any combination) cannot exceed eight.</p>
         <p>See help page for supported options or ask for support on the SIP forum.</p>
         <hr>
-
-        <h2>Status:  ${pex_c[u"pex_status"]}</h2>
+        <h2>Status Controller: ${pex_c[u"pex_status"]}   Autoconfig: ${"enabled" if pex_c["auto_configure"] else "disabled"}</h2>
 
         <br><hr>
     </div>
