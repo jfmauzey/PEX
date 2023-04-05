@@ -7,12 +7,12 @@ $var page: pex
     // Initialize behaviors
     jQuery(document).ready(function(){
 
-        //jQuery("#cSubmit").click(function() {
-        //    jQuery("#pluginForm").submit();
-        //});
-        //jQuery("button#cCancel").click(function(){
-        //    window.location="/";
-        //});
+        jQuery("#cSubmit").click(function() {
+            jQuery("#pexConfigForm").submit();
+        });
+        jQuery("button#cCancel").click(function(){
+            window.location="/";
+        });
         jQuery("button#docButton").click(function(){
             window.open("static/docs/plugins/pex-docs.html", "_blank");
        });
@@ -20,17 +20,107 @@ $var page: pex
 </script>
 
 <div id="plugin">
-    <div class="pex-home">
-        <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')
-        <button class="execute" id="docButton" type="button" >$_(u'Help')</button></div>
+    <div class="pex">
+        <div class="Intro">
+            <div class="title">$_(u'PEX -- Port Extender for SIP Irrigation Controller.')
+            <button class="execute" id="docButton" type="button" >$_(u'Help')</button></div>
 
-        <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
-        <p>Supported hardwre: pcf8574 (8 ports), pc8575 (16 ports), mcp2308 (8 ports), mcp23017 (16 ports).</p>
-        <p> The maximum number of devices (any combination) cannot exceed eight.</p>
-        <p>See help page for supported options or ask for support on the SIP forum.</p>
+            <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
+            <p>It uses the I2C System Management Bus (smbus) to configure and operate up to
+                eight I/O extender devices.</p>
+            <hr>
+            <h2>Status PEX:
+                <span style="color:${"green" if pex_c[u"pex_status"]=="enabled" else "red"}">$pex_c[u"pex_status"]</span>
+                &nbsp;&nbsp;Autoconfig: ${"enabled" if pex_c["auto_configure"] else "disabled"}</h2>
+            $if not pex_c[u"SMBus_avail"]:
+                <span style="color:red">"Missing library module smbus"</span>
+        </div>
         <hr>
-        <h2>Status Controller: ${pex_c[u"pex_status"]}   Autoconfig: ${"enabled" if pex_c["auto_configure"] else "disabled"}</h2>
-
-        <br><hr>
+        <div class="pex_Cur_HW_Config">
+            <h3>Current Configuration</h3>
+            <table>
+                <td>Number of SIP Stations:</td>
+                <td>$gv.sd["nst"]</td>
+                <td style="padding-left:20px">Number of PEX Stations:</td>
+                <td>$pex_c["num_PEX_stations"]</td>
+            </table>
+            <div>
+                $if not len(pex_c["dev_configs"]):
+                    No Hardware Devices Configured.
+                $else:
+                    <table class="collapsable" border="1">
+                        <tr>
+                            <th>$_(u'Port ID')</th>
+                                <th>$_(u'SMBus')</th>
+                                <th>$_(u'Port Addr')</th>
+                                <th>$_(u'IC Type')</th>
+                                <th>$_(u'Spanned SIP Stations')</th>
+                        </tr>
+                        $for dev in pex_c["dev_configs"]:
+                            $ SIP_span = u"{} thru {}".format(gv.snames[dev[u"first"]], gv.snames[dev[u"last"]-1])
+                            <tr>
+                                <td style="text-align: center">$loop.index</td>
+                                <td style="text-align: center">$dev['bus_id']</td>
+                                <td style="text-align: center">$dev['dev_addr']</td>
+                                <td style="text-align: center">$dev['ic_type']</td>
+                                <td style="text-align: center">$SIP_span</td>
+                            </tr>
+                    </table>
+            </div>
+        </div>
+        <hr>
+        <div class="pex-controller">
+            <h3>Edit Configuration</h3>
+            <form id="pexConfigForm" action="/pex-cfs">
+                <div class="pex_Edit_HW_Config">
+                    <div>
+                        <input type="checkbox"
+                               id = "pex_en"
+                               name="enable_pex"
+                               value="1"
+                               ${"checked" if pex_c["pex_status"] == "enabled" else ""}/>
+                        <label style="display: inline;" for="pex_en">Enable PEX</label>
+                    </div>
+                    <div>
+                        <input type="checkbox"
+                               id = "auto_conf"
+                               name="auto_configure"
+                               value="1"
+                               ${"checked" if pex_c["auto_configure"] else ""}/>
+                        <label style="display: inline;"  for="auto_conf">Enable Autoconfigure</label>
+                        <label for="auto_ic" style="display: inline">Default IC Type:</label>
+                        <select name="auto_ic" id="auto_ic">
+                            $for ic in pex_c["supported_hardware"]:
+                            <option value=${ic} ${"selected" if ic == pex_c["default_ic_type"] else ""}>${ic}</option>
+                        </select>
+                    </div>
+                    <hr>
+                    $if not pex_c[u"SMBus_avail"]:
+                        <span style="color:red">"Missing library module smbus"</span>
+                    <br>
+                    <div class="scan-results">
+                        <table class="collapsable" border="1">
+                            <tr>
+                                <td>
+                                    SMBus scan results:
+                                </td>
+                                $if not len(pex_c[u"discovered_devices"]):
+                                    <td>
+                                    <span style="color:red">"No Devices Detected."</span>
+                                    </td>
+                                $else:
+                                    $for dev in pex_c[u"discovered_devices"]:
+                                        <td>
+                                            ${hex(dev)}
+                                        </td>
+                            </tr>
+                            </table>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="controls">
+        <button id="cSubmit" class="submit"><b>$_(u'Save')</b></button>
     </div>
 </div>

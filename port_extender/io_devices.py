@@ -30,7 +30,7 @@ class SimulatedBus:
 
 class IO_Extender:
     """This is the base class for all supported io_extender hardware."""
-    def __init__(self, bus_id="1", bus_addr=0x20, alr=False, initialize=False):
+    def __init__(self, bus_id="1", dev_addr=0x20, alr=False, initialize=False):
         """Must configure port hardware. The mcp family must initialize the
         Data Direction Register (DDR) to set all ports as outputs. The pcf
         hardware has no DDR to control the port behavior. The pcf devices
@@ -46,7 +46,7 @@ class IO_Extender:
         else:
             self._bus = smbus.SMBus(int(bus_id))
 
-        self._bus_addr = bus_addr  # view by using command line "i2cdetect -y bus"
+        self._dev_addr = dev_addr  # view by using command line "i2cdetect -y bus"
         self._alr = alr
 
     def set_output(self, val):
@@ -66,8 +66,8 @@ class MCP23017(IO_Extender):
     the outputs are driven, they drive to the correct logic level.
     This insures that all outputs are preset to turn off the attached stations.'''
 
-    def __init__(self, bus_id="1", bus_addr=0x20, alr=False, initialize=False):
-        super().__init__(bus_id, bus_addr, alr, initialize)
+    def __init__(self, bus_id="1", dev_addr=0x20, alr=False, initialize=False):
+        super().__init__(bus_id, dev_addr, alr, initialize)
         self._ic_type = "mcp23017"
         self._bankA = 0x12  # reg address for port GPIOA
         self._bankB = 0x13  # reg address for port GPIOB
@@ -78,17 +78,17 @@ class MCP23017(IO_Extender):
         else:
             default_output_state = 0x0000  # all zeroes turns stations off
         try:
-            self._bus.write_word_data(bus_addr, self._bankA, default_output_state)
+            self._bus.write_word_data(dev_addr, self._bankA, default_output_state)
         except Exception as e:
-            print("PEX: io_devices: failed to write to the device 0x{:02X}".format(self._bus_addr))
+            print("PEX: io_devices: failed to write to the device 0x{:02X}".format(self._dev_addr))
             print(repr(e))
 
         # now program the device's direction control register so that all GPIO
         # pins are set to be outputs.
         a = 0x00              # reg address for IO Direction control port A
         b = 0x01              # reg address for IO Direction control port B
-        self._bus.write_byte_data(bus_addr, a, 0x00)  # Bank A set as outputs
-        self._bus.write_byte_data(bus_addr, b, 0x00)  # Bank B set as outputs
+        self._bus.write_byte_data(dev_addr, a, 0x00)  # Bank A set as outputs
+        self._bus.write_byte_data(dev_addr, b, 0x00)  # Bank B set as outputs
 
     def set_output(self, val):
         if self._alr:            # Low true logic
@@ -98,15 +98,15 @@ class MCP23017(IO_Extender):
 
         print('PEX: MCP23017: setting output to 0x{:04X}'.format(val))
         #starting address for word write is same as bank A
-        self._bus.write_word_data(self._bus_addr, self._bankA, val)
+        self._bus.write_word_data(self._dev_addr, self._bankA, val)
 
 
 class MCP2308(IO_Extender):
     '''The mcp2308 has 8 outputs that are capable of sinking or sourcing
     up to 25 mA each making it suitable to drive most relays regardless of
     whether the control logic is active high or active low.'''
-    def __init__(self, bus_id="1", bus_addr=0x20, alr=False, initialize=False):
-        super().__init__(bus_id, bus_addr, alr, initialize)
+    def __init__(self, bus_id="1", dev_addr=0x20, alr=False, initialize=False):
+        super().__init__(bus_id, dev_addr, alr, initialize)
         self._ic_type = 'mcp2308'
         if initialize:
             #program DDR to all outputs and set outputs to low unless alr==True
@@ -123,8 +123,8 @@ class MCP2308(IO_Extender):
 class PCF8575(IO_Extender):
     '''The PCF8575 has 16 outputs that are capable of sinking
     up to 15 mA each making it suitable to drive most relays.'''
-    def __init__(self, bus_id=1, bus_addr=0x20, alr=False, initialize=False):
-        super().__init__(bus_id, bus_addr, alr, initialize)
+    def __init__(self, bus_id=1, dev_addr=0x20, alr=False, initialize=False):
+        super().__init__(bus_id, dev_addr, alr, initialize)
         self._ic_type = "pcf8575"
         if initialize:
             #initialize outputs to high weakly driven
@@ -141,8 +141,8 @@ class PCF8575(IO_Extender):
 class PCF8574(IO_Extender):
     '''The PCF8574 has 8 outputs that are capable of sinking
     up to 15 mA each making it suitable to drive most relays.'''
-    def __init__(self, bus_id=1, bus_addr=0x20, alr=False, initialize=False):
-        super().__init__(bus_id, bus_addr, alr, initialize)
+    def __init__(self, bus_id=1, dev_addr=0x20, alr=False, initialize=False):
+        super().__init__(bus_id, dev_addr, alr, initialize)
         self._ic_type = "pcf8574"
         if initialize:
             #initialize outputs to high weakly driven
@@ -156,26 +156,30 @@ class PCF8574(IO_Extender):
         print('pcf8574: setting output to 0x{:02X}'.format(val))
 
 
-def IO_Device(bus_id=1, ic_type="pcf8574", bus_addr=0x20,
+def IO_Device(bus_id=1, ic_type="pcf8574", dev_addr=0x20,
             alr=False, initialize=False):
-    '''This is a factory to create the interface to the io extender.'''
+    '''This is a factory to create the device interface for the io extender.'''
     if ic_type == "mcp23017":
-        return MCP23017(bus_id, bus_addr, alr, initialize)
+        return MCP23017(bus_id, dev_addr, alr, initialize)
     elif ic_type == "mcp2308":
-        return MCP2308(bus_id, bus_addr, alr, initialize)
+        return MCP2308(bus_id, dev_addr, alr, initialize)
     elif ic_type == "pcf8575":
-        return PCF8575(bus_id, bus_addr, alr, initialize)
+        return PCF8575(bus_id, dev_addr, alr, initialize)
     elif ic_type == "pcf8574":
-        return PCF8574(bus_id, bus_addr, alr, initialize)
+        return PCF8574(bus_id, dev_addr, alr, initialize)
     else:
         print(u"ERROR: PEX unsupported device type requested {}".format(ic_type))
 
 
 # smbus tool
-def i2c_scan(i2c_bus_id, start_addr = 0x08, end_addr = 0xF7):
+def i2c_scan(i2c_bus_id, start_addr=0x08, end_addr=0xF7):
     devices_discovered = []
-    if SMBus_avail == False or i2c_bus_id == 'SimulatedBus':  # Then simulate i2c_scan results
-        devices_discovered = [start_addr]  # return a single device for demo'ing
+    if not SMBus_avail:  # Then simulate i2c_scan results
+        for i in range(start_addr, end_addr+1):
+            devices_discovered.append(i)   # return device(s) needed for demo'ing
+    elif i2c_bus_id == 'SimulatedBus':  # Then simulate i2c_scan results
+        for i in range(start_addr, end_addr+1):
+            devices_discovered.append(i)  # return device(s) needed for demo'ing
     else:
         bus = smbus.SMBus(int(i2c_bus_id))
         for i in range(start_addr, end_addr+1):
