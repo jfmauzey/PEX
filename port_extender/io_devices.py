@@ -20,11 +20,15 @@ class SimulatedBus:
         pass
 
     def write_byte_data(self, addr, register, data):
-        #print(f'SimBus write register {addr} with {data}'
+        #print(f'SimBus write byte to addr {addr:02x} register {register} with 0x{data:02x}'
         pass
 
     def write_word_data(self, addr, register, data):
-        #print(f'SimBus write to 0x{addr:02x} register {register} data 0x{data:02x}'
+        #print(f'SimBus write word to 0x{addr:02x} register {register} data 0x{data:04x}'
+        pass
+
+    def write_quick(self, addr):  # Every tested addr will succeed.
+        print(f'SimBus write quick to 0x{addr:02x}')
         pass
 
 
@@ -38,9 +42,6 @@ class IO_Extender:
         a weak pullup on an open collector output. This interface only
         supports using the io extenders as outputs. Initialization needs
         only to be done once."""
-        self._bus_id = bus_id  # view by using command line "i2cdetect -y bus"
-        if SMBus_avail == False:
-            bus_id = 'SimulatedBus'
         if bus_id == 'SimulatedBus':
             self._bus = SimulatedBus()
         else:
@@ -50,6 +51,7 @@ class IO_Extender:
         self._alr = alr
 
     def set_output(self, val):
+        print(u'ERROR: PEX: Base class should never be called.')
         pass
 
 
@@ -68,7 +70,6 @@ class MCP23017(IO_Extender):
 
     def __init__(self, bus_id="1", dev_addr=0x20, alr=False, initialize=False):
         super().__init__(bus_id, dev_addr, alr, initialize)
-        self._ic_type = "mcp23017"
         self._bankA = 0x12  # reg address for port GPIOA
         self._bankB = 0x13  # reg address for port GPIOB
 
@@ -97,7 +98,7 @@ class MCP23017(IO_Extender):
             val = val & 0xffff
 
         print('PEX: MCP23017: setting output to 0x{:04X}'.format(val))
-        #starting address for word write is same as bank A
+        # starting address for word write is same as bank A
         self._bus.write_word_data(self._dev_addr, self._bankA, val)
 
 
@@ -107,9 +108,8 @@ class MCP2308(IO_Extender):
     whether the control logic is active high or active low.'''
     def __init__(self, bus_id="1", dev_addr=0x20, alr=False, initialize=False):
         super().__init__(bus_id, dev_addr, alr, initialize)
-        self._ic_type = 'mcp2308'
         if initialize:
-            #program DDR to all outputs and set outputs to low unless alr==True
+            #TODO: program DDR to all outputs and set outputs to low unless alr==True
             pass
 
     def set_output(self, val):
@@ -117,6 +117,7 @@ class MCP2308(IO_Extender):
             val = ~val & 0xff
         else:
             val = val & 0xff
+        # TODO: need to write to device.
         print('MCP2308: setting output to 0x{:02X}'.format(val))
 
 
@@ -125,9 +126,8 @@ class PCF8575(IO_Extender):
     up to 15 mA each making it suitable to drive most relays.'''
     def __init__(self, bus_id=1, dev_addr=0x20, alr=False, initialize=False):
         super().__init__(bus_id, dev_addr, alr, initialize)
-        self._ic_type = "pcf8575"
         if initialize:
-            #initialize outputs to high weakly driven
+            # TODO: initialize outputs to high weakly driven
             pass
 
     def set_output(self, val):
@@ -135,6 +135,7 @@ class PCF8575(IO_Extender):
             val = ~val & 0xffff
         else:
             val = val & 0xffff
+        # TODO: need to write to device.
         print('PCF8575: setting output to 0x{:04X}'.format(val))
 
 
@@ -143,9 +144,8 @@ class PCF8574(IO_Extender):
     up to 15 mA each making it suitable to drive most relays.'''
     def __init__(self, bus_id=1, dev_addr=0x20, alr=False, initialize=False):
         super().__init__(bus_id, dev_addr, alr, initialize)
-        self._ic_type = "pcf8574"
         if initialize:
-            #initialize outputs to high weakly driven
+            # TODO: initialize outputs to high weakly driven
             pass
 
     def set_output(self, val):
@@ -153,6 +153,7 @@ class PCF8574(IO_Extender):
             val = ~val & 0xff
         else:
             val = val & 0xff
+        # TODO: need to write to device.
         print('pcf8574: setting output to 0x{:02X}'.format(val))
 
 
@@ -174,19 +175,15 @@ def IO_Device(bus_id=1, ic_type="pcf8574", dev_addr=0x20,
 # smbus tool
 def i2c_scan(i2c_bus_id, start_addr=0x08, end_addr=0xF7):
     devices_discovered = []
-    if not SMBus_avail:  # Then simulate i2c_scan results
-        for i in range(start_addr, end_addr+1):
-            devices_discovered.append(i)   # return device(s) needed for demo'ing
-    elif i2c_bus_id == 'SimulatedBus':  # Then simulate i2c_scan results
-        for i in range(start_addr, end_addr+1):
-            devices_discovered.append(i)  # return device(s) needed for demo'ing
+    if i2c_bus_id == "SimulatedBus":
+        bus = SimulatedBus()
     else:
         bus = smbus.SMBus(int(i2c_bus_id))
-        for i in range(start_addr, end_addr+1):
-            try:
-                bus.write_quick(i)
-                devices_discovered.append(i)
-            except OSError as e:
-                pass  # no device responded
+    for i in range(start_addr, end_addr+1):
+        try:
+            bus.write_quick(i)
+            devices_discovered.append(i)
+        except OSError as e:
+            pass  # no device responded
     return devices_discovered  # list of addresses from successful handshake ACK
 

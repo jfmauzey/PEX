@@ -1,4 +1,4 @@
-$def with(pex_c, gv)
+$def with(pex_c, pex_e, gv)
 
 $var title: $_(u'SIP PEX Plugin')
 $var page: pex
@@ -95,10 +95,10 @@ $var page: pex
                         </select>
                     </div>
                     <hr>
-                    $if not pex_c[u"SMBus_avail"]:
-                        <span style="color:red">"Missing library module smbus"</span>
-                    <br>
                     <div class="scan-results">
+                        $if not pex_c[u"SMBus_avail"]:
+                            <span style="color:red">"Missing library module smbus"</span>
+                            <br>
                         <table class="collapsable" border="1">
                             <tr>
                                 <td>
@@ -115,8 +115,21 @@ $var page: pex
                                         </td>
                             </tr>
                             </table>
+                        <div class="controls" style="display: inline">
+                            <button class="submitscan" onclick="window.location.href='/pex-scan';"><b>$_(u'Re-scan I2C')</b></button>
+                        </div>
                     </div>
                 </div>
+                <hr>
+                <table class="collapsable" border="1">
+                    <tr>
+                        <th>$_(u'Port ID')</th>
+                        <th>$_(u'SMBus')</th>
+                        <th>$_(u'Port Addr')</th>
+                        <th>$_(u'IC Type')</th>
+                        <th>$_(u'Spanned SIP Stations')</th>
+                    </tr>
+                </table>
             </form>
         </div>
     </div>
