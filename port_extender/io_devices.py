@@ -172,6 +172,10 @@ def IO_Device(bus_id=1, ic_type="pcf8574", dev_addr=0x20,
         print(u"ERROR: PEX unsupported device type requested {}".format(ic_type))
 
 
+def supported_devices():
+   return ("mcp23017","mcp2308","pcf8575", "pcf8574")
+
+
 # smbus tool
 def i2c_scan(i2c_bus_id, start_addr=0x08, end_addr=0xF7):
     devices_discovered = []

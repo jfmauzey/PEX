@@ -1,4 +1,4 @@
-$def with(pex_c, pex_e, gv)
+$def with(pex, pex_c, pex_e, gv)
 
 $var title: $_(u'SIP PEX Plugin')
 $var page: pex
@@ -32,7 +32,7 @@ $var page: pex
             <h2>Status PEX:
                 <span style="color:${"green" if pex_c[u"pex_status"]=="enabled" else "red"}">$pex_c[u"pex_status"]</span>
                 &nbsp;&nbsp;Autoconfig: ${"enabled" if pex_c["auto_configure"] else "disabled"}</h2>
-            $if not pex_c[u"SMBus_avail"]:
+            $if not pex.smbus_avail:
                 <span style="color:red">"Missing library module smbus"</span>
         </div>
         <hr>
@@ -90,13 +90,13 @@ $var page: pex
                         <label style="display: inline;"  for="auto_conf">Enable Autoconfigure</label>
                         <label for="auto_ic" style="display: inline">Default IC Type:</label>
                         <select name="auto_ic" id="auto_ic">
-                            $for ic in pex_c["supported_hardware"]:
+                            $for ic in pex.supported_devices:
                             <option value=${ic} ${"selected" if ic == pex_c["default_ic_type"] else ""}>${ic}</option>
                         </select>
                     </div>
                     <hr>
                     <div class="scan-results">
-                        $if not pex_c[u"SMBus_avail"]:
+                        $if not pex.smbus_avail:
                             <span style="color:red">"Missing library module smbus"</span>
                             <br>
                         <table class="collapsable" border="1">
@@ -104,14 +104,14 @@ $var page: pex
                                 <td>
                                     SMBus scan results:
                                 </td>
-                                $if not len(pex_c[u"discovered_devices"]):
+                                $if not len(pex.discovered_devices):
                                     <td>
                                     <span style="color:red">"No Devices Detected."</span>
                                     </td>
                                 $else:
-                                    $for dev in pex_c[u"discovered_devices"]:
+                                    $for dev in pex.discovered_devices:
                                         <td>
-                                            ${hex(dev)}
+                                            ${dev}
                                         </td>
                             </tr>
                             </table>

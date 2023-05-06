@@ -14,7 +14,7 @@ import platform
 import gv  # Access to SIP global variables
 
 # PEX module imports
-from port_extender.io_devices import IO_Device, i2c_scan
+from port_extender.io_devices import IO_Device, supported_devices, i2c_scan
 
 # The smbus module is required to control io port hardware.
 # If module is missing, only simulated devices are supported.
@@ -59,11 +59,18 @@ def get_smbus_default():
 class PEX:
 
     def __init__(self):
-        self.ports = []  # Configured io-extender devices. Not saved in pex.json.
-        self.pex_c = self.load_config()  # Saved in pex.json
-        self.edit_conf = copy.deepcopy(self.pex_c)  # Initialize the copy for editing.
+        self.ports = []  # Runtime configured io-extender devices. Not saved in pex.json.
+        self.discovered_devices = []  # Results of smbus scan
         self.pex_msg = ""
-        self._debug = self.pex_c['debug']
+        self.num_SIP_stations = gv.sd[u"nst"]  # Needed to determine if SIP options change
+        self.SIP_alr = gv.sd['alr']  # Needed to determine if SIP options change
+        self.supported_devices = supported_devices()
+        self.smbus_avail = SMBus_avail
+        self.default_smbus = get_smbus_default()
+        self.config_status = u"unconfigured"
+        self.pex_c = self.load_config()  # Saved in pex.json
+        self.debug = self.pex_c['debug']
+        self.edit_conf = copy.deepcopy(self.pex_c)  # Initialize the copy for editing.
 
     def create_device(self, bus_id="1", dev_addr=u"0x20", ic_type=u"pcf8574",
                       size=8, first=0, last=0, unused=0):
@@ -75,18 +82,11 @@ class PEX:
         pex_conf = {
             u"debug": "0",
             u"pex_status": u"enabled",  # enabled or disabled changed by PEX UI
-            u"config_status": u"unconfigured",
             u"auto_configure": 1,
             u"demo_mode": 0,
-            u"default_smbus": get_smbus_default(),
-            u"SMBus_avail": SMBus_avail,
             u"default_ic_type": u'mcp23017',  # Used by autoconfig and config editor
-            u"SIP_alr": gv.sd['alr'],            # Needed to determine if SIP options change
-            u"num_SIP_stations": gv.sd[u"nst"],  # Needed to determine if SIP options change
             u"num_PEX_stations": 0,
-            u"supported_hardware": [u'pcf8574', u'pcf8575', u'mcp2308', u'mcp23017'],
             u"dev_configs": [],  # List of installed io device extenders
-            u"discovered_devices": [],
         }
         return pex_conf
 
@@ -139,21 +139,20 @@ class PEX:
                     pex_config[u"num_PEX_stations"] = sum(dev[u"size"] for dev in pex_config[u"dev_configs"])
 
             if pex_config[u"num_PEX_stations"] < gv.sd[u"nst"]:
-                pex_config[u"config_status"] = u"unconfigured"
+                self.config_status = u"unconfigured"
                 print(u"PEX: Not enough io extender ports configured.")
-            elif pex_config[u"num_SIP_stations"] != gv.sd[u"nst"]:
-                pex_config[u"config_status"] = u"unconfigured"
-                print(u"PEX: Saved config does not match SIP runtime.")
+                self.pex_msg = u"PEX configuration Error. No Workee!."
             else:
-                pex_config[u"config_status"] = u"configured"
+                self.config_status = u"configured"
                 self.ports = self.create_device_ports(pex_config)
+                self.pex_msg = u"PEX running no errors."
         return pex_config
 
     # Save the pex config for this plugin to it's JSON file
     def save_config(self, pex_c):
         # need to validate config before saving
         if not (self.validate_config(pex_c) and self.verify_hardware_config(pex_c)):
-            pex_c[u"config_status"] = "unconfigured"
+            self.config_status = "unconfigured"
         with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
             json.dump(pex_c, f, indent=4)
 
@@ -163,7 +162,7 @@ class PEX:
         scan results to successfully create the SIP to Port mapping.
         """
 
-        smbus_id = pex_c[u"default_smbus"]
+        smbus_id = self.default_smbus
         ic_type = pex_c[u"default_ic_type"]
         if ic_type in "pcf8574 mcp2308":
                 port_span = 8
@@ -172,7 +171,7 @@ class PEX:
 
         num_devs_needed = math.ceil(gv.sd[u"nst"] / port_span)
         discovered_devices = self.scan_for_ioextenders(pex_c)
-        pex_c[u"discovered_devices"] = discovered_devices  # Saved for PEX-UI
+        self.discovered_devices = discovered_devices  # Saved for PEX-UI
         if num_devs_needed > len(discovered_devices):
             print("ERROR: PEX requires {} io extender devices: Detected = {}".format(num_devs_needed,
                                                                                      len(discovered_devices)))
@@ -191,7 +190,7 @@ class PEX:
                 last = gv.sd[u"nst"]
             else:
                 unused = 0
-            dev_addr = hex(discovered_devices[dev_id])
+            dev_addr = discovered_devices[dev_id]
             conf_d.append(self.create_device(bus_id=smbus_id, dev_addr=dev_addr, ic_type=ic_type,
                                              size=port_span, first=first, last=last, unused=unused))
         return conf_d
@@ -210,14 +209,6 @@ class PEX:
         for k in conf.keys():  # Warn if extra fields are present in loaded conf
             if not k in def_keys:
                 print('PEX: Warning: Unused keys found in config loaded from ./data/pex_config.json conf["{}"]'.format(k))
-        if conf[u"num_SIP_stations"] != gv.sd[u"nst"]:  # Verify SIP runtime agrees with saved value
-            valid = False
-            print("PEX: Bad config. Number of SIP stations different from the saved value.")
-            print("PEX: Number of SIP stations: {} saved value: {}".format(gv.sd[u"nst"], conf[u"num_SIP_stations"]))
-        if conf[u"SIP_alr"] != gv.sd[u"alr"]:  # Verify SIP runtime agrees with saved value
-            valid = False
-            print("PEX: Bad config. SIP active low relay different from the saved value.")
-            print("PEX: SIP alr: {} saved value: {}".format(gv.sd[u"alr"], conf[u"num_SIP_stations"]))
         # TODO: Verify that conf dictionary values are of the proper type (e.g. int, str, etc.)
         return valid
 
@@ -251,10 +242,12 @@ class PEX:
 
     def scan_for_ioextenders(self, pex_c):
         'Scan well known bus address range for supported hardware port extenders.'
-        bus_id = pex_c[u"default_smbus"]
+        bus_id = self.default_smbus
         i2c_start_addr = 0x20  # beginning i2c address for MCP230x and pcf857x
         i2c_end_addr = 0x27  # last possible i2c address for any MCP230x and pcf857x
-        return i2c_scan(bus_id, i2c_start_addr, i2c_end_addr)
+        results = i2c_scan(bus_id, i2c_start_addr, i2c_end_addr)
+        hex_results = [hex(i) for i in results]
+        return hex_results
 
     def verify_device_handshake(self, bus_id, bus_addr):
         """Use SMbus ACK protocol for handshake to verify connectivity."""
