@@ -72,7 +72,7 @@ $var page: pex
         <div class="pex-controller">
             <h3>Edit Configuration</h3>
             <form id="pexConfigForm" action="/pex-cfs">
-                <div class="pex_Edit_HW_Config">
+                <div class="pex_Edit_Config">
                     <div>
                         <input type="checkbox"
                                id = "pex_en"
@@ -94,42 +94,7 @@ $var page: pex
                             <option value=${ic} ${"selected" if ic == pex_c["default_ic_type"] else ""}>${ic}</option>
                         </select>
                     </div>
-                    <hr>
-                    <div class="scan-results">
-                        $if not pex.smbus_avail:
-                            <span style="color:red">"Missing library module smbus"</span>
-                            <br>
-                        <table class="collapsable" border="1">
-                            <tr>
-                                <td>
-                                    SMBus scan results:
-                                </td>
-                                $if not len(pex.discovered_devices):
-                                    <td>
-                                    <span style="color:red">"No Devices Detected."</span>
-                                    </td>
-                                $else:
-                                    $for dev in pex.discovered_devices:
-                                        <td>
-                                            ${dev}
-                                        </td>
-                            </tr>
-                            </table>
-                        <div class="controls" style="display: inline">
-                            <button class="submitscan" onclick="window.location.href='/pex-scan';"><b>$_(u'Re-scan I2C')</b></button>
-                        </div>
-                    </div>
                 </div>
-                <hr>
-                <table class="collapsable" border="1">
-                    <tr>
-                        <th>$_(u'Port ID')</th>
-                        <th>$_(u'SMBus')</th>
-                        <th>$_(u'Port Addr')</th>
-                        <th>$_(u'IC Type')</th>
-                        <th>$_(u'Spanned SIP Stations')</th>
-                    </tr>
-                </table>
             </form>
         </div>
     </div>
