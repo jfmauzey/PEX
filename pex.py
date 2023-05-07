@@ -66,22 +66,27 @@ pex_footer2.label = u"Message"
 
 #  Write to shared memory. The web server reads in response
 #  to GET from /api/plugins.
-def pex_footer_update(status, port_config, autoconf, msg):
-    r = u'Controller: {}'.format(status)
-    r += u' IO Hardware: {}'.format(port_config)
-    r += u' Autoconfig: {}'.format("enabled" if autoconf else "disabled")
+def pex_footer_update(dmode, status, port_config, autoconf, msg):
+    r = dmode
+    r += u' {} - - - IO_Hardware: {}'.format(status, port_config)
+    r += u' - - - Autoconfig: {}'.format("enabled" if autoconf else "disabled")
     pex_footer1.val = r
     pex_footer2.val = u'{}'.format(msg if len(msg) else "No message")
 
 # Build and initialize the PEX controller
 pex = PEX()
 
-#  pex_c maintains the runtime configuration for the controller
-#  and is the source for the information displayed on the pex web page.
+#  pex_c maintains the permanently saved configuration for the controller
+#  and is the source for the configuration information displayed on the pex
+#  web page.  Really just a shortcut to keep from typing "pex.pex_c".
 pex_c = pex.pex_c
 
 #  Initialize the footer with the current status: Defined at startup.
-pex_footer_update(pex_c[u"pex_status"], pex.config_status,
+if pex_c[u"demo_mode"] or not pex.smbus_avail:
+    dmode = u"DEMO_MODE"
+else:
+    dmode = u""
+pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
                   pex_c[u"auto_configure"], pex.pex_msg)
 
 
@@ -98,13 +103,21 @@ def on_zone_change(name, **kw):
     if pex_c[u"pex_status"] != u"enabled":
         print("PEX: Failure to set outputs because it is DISABLED and not in RUN mode.")
         pex.pex_msg = "ERROR: Failure to set outputs because PEX is DISABLED!."
-        pex_footer_update(pex_c[u"pex_status"], pex.config_status,
+        if pex_c[u"demo_mode"] or not pex.smbus_avail:
+            dmode = u"DEMO_MODE"
+        else:
+            dmode = u""
+        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
                           pex_c[u"auto_configure"], pex.pex_msg)
         return
     if pex.config_status != u"configured":
         print(u"PEX configuration error: plugin blocked, need to configure.")
         pex.pex_msg = "ERROR: Failure to set outputs. PEX needs to be configured."
-        pex_footer_update(pex_c[u"pex_status"], pex.config_status,
+        if pex_c[u"demo_mode"] or not pex.smbus_avail:
+            dmode = u"DEMO_MODE"
+        else:
+            dmode = u""
+        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
                           pex_c[u"auto_configure"], pex.pex_msg)
         return
     try:
@@ -113,7 +126,11 @@ def on_zone_change(name, **kw):
         print(u"ERROR: PEX failed to set state of outputs.")
         print(repr(e))
         pex.pex_msg = "ERROR: Failure to set outputs. PEX needs to be configured."
-        pex_footer_update(pex_c[u"pex_status"], pex.config_status,
+        if pex_c[u"demo_mode"] or not pex.smbus_avail:
+            dmode = u"DEMO_MODE"
+        else:
+            dmode = u""
+        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
                           pex_c[u"auto_configure"], pex.pex_msg)
 
 zones = signal(u"zone_change")
@@ -149,7 +166,11 @@ def notify_option_change(name, **kw):
 
        # Save modified configuration to permanent storage in json file
        pex.save_config(pex_c)
-       pex_footer_update(pex_c[u"pex_status"], pex.config_status,
+       if pex_c[u"demo_mode"] or not pex.smbus_avail:
+           dmode = u"DEMO_MODE"
+       else:
+           dmode = u""
+       pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
                          pex_c[u"auto_configure"], pex.pex_msg)
 
 option_change = signal(u"option_change")
@@ -164,7 +185,11 @@ class Settings(ProtectedPage):
     """Load html page showing the PEX home page."""
 
     def GET(self):
-        pex_footer_update(pex_c[u"pex_status"], pex.config_status,
+        if pex_c[u"demo_mode"] or not pex.smbus_avail:
+            dmode = u"DEMO_MODE"
+        else:
+            dmode = u""
+        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
                           pex_c[u"auto_configure"], pex.pex_msg)
         try:
             sp = template_render.pex(pex, pex_c, pex.edit_conf, gv)
@@ -180,7 +205,7 @@ class ConfigSave(ProtectedPage):
     """Load html page with the possibly modified PEX config settings."""
 
     def GET(self):
-        global pex
+        global pex, pex_c
         qdict = (web.input())
         update_needed = False
         pex_e = pex.edit_conf
@@ -205,13 +230,25 @@ class ConfigSave(ProtectedPage):
             if pex_e["default_ic_type"] != qdict["auto_ic"]:
                 update_needed = True
             pex_e["default_ic_type"] = qdict["auto_ic"]
+        if "demo_mode" in qdict:
+            if not pex_e[u"demo_mode"]:
+                update_needed = True
+            pex_e[u"demo_mode"] = 1
+        else:
+            if pex_e[u"demo_mode"]:
+                update_needed = True
+            pex_e[u"demo_mode"] = 0
         if update_needed:
             pex.save_config(pex_e)  # save to permanent storage
-            pex.pex_c = copy.deepcopy(pex_e)
-            del(pex)
+            del(pex)  # Do some cleanup by explicitly deleting the controller
             pex = PEX()  # Restart
             pex_c = pex.pex_c
-        pex_footer_update(pex_c[u"pex_status"], pex.config_status,
+
+        if pex_c[u"demo_mode"] or not pex.smbus_avail:
+            dmode = u"DEMO_MODE"
+        else:
+            dmode = u""
+        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
                           pex_c[u"auto_configure"], pex.pex_msg)
         try:
             sp = template_render.pex(pex, pex_c, pex.edit_conf, gv)

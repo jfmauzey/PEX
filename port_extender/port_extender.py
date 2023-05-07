@@ -68,8 +68,7 @@ class PEX:
         self.smbus_avail = SMBus_avail
         self.default_smbus = get_smbus_default()
         self.config_status = u"unconfigured"
-        self.pex_c = self.load_config()  # Saved in pex.json
-        self.debug = self.pex_c['debug']
+        self.pex_c = self.load_config()  # Load config from data/pex.json
         self.edit_conf = copy.deepcopy(self.pex_c)  # Initialize the copy for editing.
 
     def create_device(self, bus_id="1", dev_addr=u"0x20", ic_type=u"pcf8574",
@@ -80,7 +79,6 @@ class PEX:
     def create_default_config(self):
         # This configuration dictionary is saved in pex.json.
         pex_conf = {
-            u"debug": "0",
             u"pex_status": u"enabled",  # enabled or disabled changed by PEX UI
             u"auto_configure": 1,
             u"demo_mode": 0,
@@ -131,6 +129,9 @@ class PEX:
             if pex_config[u"pex_status"] == "disabled":
                 return pex_config
 
+            if pex_config[u"demo_mode"]:
+                self.default_smbus = "SimulatedBus"
+
             if pex_config[u"auto_configure"]:
                 pex_config[u"dev_configs"] = self.auto_config(pex_config)
                 pex_config[u"num_PEX_stations"] = sum(dev[u"size"] for dev in pex_config[u"dev_configs"])
@@ -151,7 +152,13 @@ class PEX:
     # Save the pex config for this plugin to it's JSON file
     def save_config(self, pex_c):
         # need to validate config before saving
-        if not (self.validate_config(pex_c) and self.verify_hardware_config(pex_c)):
+        if self.validate_config(pex_c):
+            if pex_c[u"auto_configure"]:    # Don't check hardware if auto_configure
+                pex_c[u"dev_configs"] = []  # and don't save device configs either.
+                self.config_status = "configured"
+            elif self.verify_hardware_config(pex_c):
+                self.config_status = "configured"
+        else:
             self.config_status = "unconfigured"
         with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
             json.dump(pex_c, f, indent=4)

@@ -12,6 +12,6 @@ pex.py plugins
 port_extender.py plugins/port_extender
 io_devices.py plugins/port_extender
 pex.html templates
-pex-docs.html static/docs/plugins/pex-docs.html
+pex-docs.html static/docs/plugins
 pex.json data (generated)
 pex_plugin.manifest plugins/manifests

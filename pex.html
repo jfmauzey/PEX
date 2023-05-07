@@ -33,7 +33,11 @@ $var page: pex
                 <span style="color:${"green" if pex_c[u"pex_status"]=="enabled" else "red"}">$pex_c[u"pex_status"]</span>
                 &nbsp;&nbsp;Autoconfig: ${"enabled" if pex_c["auto_configure"] else "disabled"}</h2>
             $if not pex.smbus_avail:
-                <span style="color:red">"Missing library module smbus"</span>
+                <span style="color:red">"Missing library module smbus."</span>
+                Only Demo Mode supported.
+                <br>
+            $if pex_c[u"demo_mode"]:
+                <span style="color:red">"Demo Mode selected."</span>
         </div>
         <hr>
         <div class="pex_Cur_HW_Config">
@@ -93,6 +97,14 @@ $var page: pex
                             $for ic in pex.supported_devices:
                             <option value=${ic} ${"selected" if ic == pex_c["default_ic_type"] else ""}>${ic}</option>
                         </select>
+                    </div>
+                    <div>
+                        <input type="checkbox"
+                               id = "demo_mode"
+                               name="demo_mode"
+                               value="1"
+                               ${"checked" if pex_c["demo_mode"] else ""}/>
+                        <label style="display: inline;" for="demo_mode">Enable demo mode</label>
                     </div>
                 </div>
             </form>
