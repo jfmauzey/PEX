@@ -67,7 +67,7 @@ class PEX:
         self.smbus_avail = SMBus_avail
         self.default_smbus = get_smbus_default()
         self.config_status = u"unconfigured"
-        self.pex_c = self.load_config()  # Load config from data/pex.json
+        self.pex_c = self.load_config()  # Load config from data/pex-config.json
         self.edit_conf = copy.deepcopy(self.pex_c)  # Initialize the copy for editing.
 
     def create_device(self, bus_id="1", dev_addr=u"0x20", ic_type=u"mcp23017",
