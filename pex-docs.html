@@ -11,10 +11,12 @@
 Documentation</H1>
 <H2 CLASS="western"><A NAME="about-the-pex-plugin"></A>About the
 PEX Plugin</H2>
-<P>The PEX plugin is used to replace the default SIP shift register.
+<P>
+The PEX plugin is used to replace the default SIP shift register.
 PEX allows up to 128 stations to be controlled by the SIP irrigation controller.
 </P>
 <P>
+<STRONG>Note: Only the MCP23017 has been tested with actual hardware.</STRONG><br>
 Supported hardware: pcf8574 (8 ports), pc8575 (16 ports), mcp2308 (8 ports), mcp23017 (16 ports).<BR>
 It also provides a simulated bus that allows for test/demo of the PEX plugin.
 <P>
@@ -22,11 +24,31 @@ The maximum number of devices (any combination) cannot exceed eight.
 </P>
 <BR>
 <P>
-When Autoconfigure is enabled, PEX scans the I2C bus for devices that are reported to be attached to the bus.
-All devices found are assumed to be of the same type. The discovered devices are sequentially mapped to the SIP
-stations using the default IC type.
+When Autoconfigure is enabled, PEX scans the I2C bus at well known addresses (0x20 through 0x27)
+for devices that respond to a bus write with an ACK handshake. All devices found are assumed to be of the
+same type. The discovered devices are sequentially mapped to the SIP stations using the span
+(8 or 16) of the selected default IC type.
 </P>
+<BR>
+<P>
+If Autoconfigure is disabled, PEX uses the last configuration saved to permanent storage to
+configure the PEX controller.<BR>
+There is no editor to manually configure the device configuration. The following describes a kludgy
+workaround:
 </P>
+<OL>
+	<LI>On the PEX plugin page select "Demo mode", Autoconfigure, and specify the device type
+		for your hardware that needs to be manually configured.</LI>
+	<LI>Click the "SAVE" button. This will create a device configuration that satisfies the
+		SIP requirements for number of stations.</LI>
+	<LI>Return to the PEX plugin page and deselect autocofigure, then click the "SAVE" button.
+		This will save the current device configuration to permanent storage.</LI>
+	<LI>Using your favorite text editor, open the file SIP/data/pex-config.json. Replace every
+		occurrence of "SimulatedBus" with the bus id for your controller (either "0" or "1").
+		Note that this value is a quoted string. Most users will use the value "1" since nearly
+		all Raspberry Pi's use bus id "1" for the I2C bus.</LI>
+	<LI> Save the modified file and restart SIP.</LI>
+<OL>
 <H2 CLASS="western"><A NAME="about-the-pex-files"></A>
 The plugin includes the folowing files:</H2>
 <UL>
@@ -39,26 +61,22 @@ The plugin includes the folowing files:</H2>
 	    provides the runtime state.<BR>
 		Location: <STRONG>SIP/plugins/port_extender</STRONG></P>
 	<LI><P STYLE="margin-bottom: 0in"><STRONG>io_devices.py</STRONG><BR>
-		Python module that provides the interface used to control the devices
-	    attached to the I2C bus. Four device types are supported:<BR>
+		Python module used to control the supported devices
+	    attached to the I2C bus. The four supported device types are:<BR>
 		pcf8574 pcf8575 mcp2308 mcp23017<BR>
-		Location: <STRONG>SIP/plugins/io_devices</STRONG></P>
+		Location: <STRONG>SIP/plugins/port_extender</STRONG></P>
 	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.html</STRONG><BR>
-        This file is a web.py template that provides a user interface for the plugin.
-	    It generates the HTML data that is displayed on the PEX home page. Two
-        dictionaries are used to pass and synchronize data between the UI
-        and the PEX runtime environment: pex.pex_conf, gv.<BR>
+        This file is a web.py template that creates the user interface for the plugin.
+	    It generates the HTML data that is displayed on the PEX plugin page.<BR>
 	    Location: <STRONG>SIP/templates</STRONG></P>
-	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex-docs.html</STRONG><BR>This
-	    file. Provides documentation for the pex plugin including any special
-	    hardware needed and set up instructions.<BR>
+	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex-docs.html</STRONG><BR>This file.<BR>
 	    Location: <STRONG>SIP/static/docs/plugins</STRONG></P>
 	<LI><P STYLE="margin-bottom: 0in"><STRONG>pex.manifest</STRONG><BR>A
 	     text file containing a list of each of the plugin&rsquo;s
 	     files with the path to it&rsquo;s location. The manifest is used by
 	     the plugin manager to install and uninstall the plugin.<BR>
          Location: <STRONG>SIP/plugins/manifest</STRONG></P>
-	<LI><P><STRONG>pex.json</STRONG><BR>Configuration file containing
+	<LI><P><STRONG>pex-config.json</STRONG><BR>Configuration file containing
 	     persistant storage of port extender settings. It is created by the plugin
 	     the first time it is run and is not installed with the other files.<BR>
 	     Location: <STRONG>SIP/data</STRONG></P>

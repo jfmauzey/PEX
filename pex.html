@@ -25,8 +25,8 @@ $var page: pex
             <button class="execute" id="docButton" type="button" >$_(u'Help')</button></div>
 
             <p>PEX allows up to 128 stations to be controlled by the SIP irrigation controller.</p>
-            <p>It uses the I2C System Management Bus (smbus) to configure and operate up to
-                eight I/O extender devices.</p>
+            <p>It uses the I2C System Management Bus (smbus) to automatically configure and
+                operate up to eight I/O extender devices.</p>
             <hr>
             <h2>Status PEX:
                 <span style="color:${"green" if pex_c[u"pex_status"]=="enabled" else "red"}">$pex_c[u"pex_status"]</span>
