@@ -149,7 +149,9 @@ class MCP2308(IO_Extender):
 
 class PCF8575(IO_Extender):
     '''The PCF8575 has 16 outputs that are capable of sinking
-    up to 15 mA each making it suitable to drive most relays.'''
+    up to 15 mA each making it suitable to drive most relays.
+    All data writes occur in pairs. The first write sets the
+    lower byte and the second write sets the upper byte.'''
     def __init__(self, bus_id=1, dev_addr=0x20, alr=False):
         super().__init__(bus_id, dev_addr, alr)
 
@@ -158,8 +160,8 @@ class PCF8575(IO_Extender):
             default_output_state = 0xffff  # all ones turns stations off
         else:
             default_output_state = 0x0000  # all zeroes turns stations off
-        val1 = (default_output_state & 0xff)
-        val2 = (default_output_state & 0xff00) >> 8
+        val1 = (default_output_state & 0xff)         # Lower byte
+        val2 = (default_output_state & 0xff00) >> 8  # Upper byte
         try:
             self._bus.write_byte(dev_addr, val1)
             self._bus.write_byte(dev_addr, val2)
@@ -172,8 +174,8 @@ class PCF8575(IO_Extender):
             val = ~val & 0xffff
         else:
             val = val & 0xffff
-        val1 = (val & 0xff)
-        val2 = (val & 0xff00) >> 8
+        val1 = (val & 0xff)         # Lower byte
+        val2 = (val & 0xff00) >> 8  # Upper byte
         #print('DEBUG: PEX: PCF8575: set output port: 0x{:02X} to 0x{:04X}'.format(self._dev_addr, val))
         self._bus.write_byte(self._dev_addr, val1)  # Write first 8 bits P7..P0
         self._bus.write_byte(self._dev_addr, val2)  # Write second 8 bits P17..P10
@@ -205,8 +207,7 @@ class PCF8574(IO_Extender):
         self._bus.write_byte(self._dev_addr, val)
 
 
-def IO_Device(bus_id=1, ic_type="pcf8574", dev_addr=0x20,
-            alr=False):
+def IO_Device(bus_id=1, ic_type="pcf8574", dev_addr=0x20, alr=False):
     '''This is a factory to create the device interface for the io extender.'''
     if ic_type == "mcp23017":
         return MCP23017(bus_id, dev_addr, alr)
