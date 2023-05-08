@@ -18,7 +18,15 @@ PEX allows up to 128 stations to be controlled by the SIP irrigation controller.
 <P>
 <STRONG>Note: Only the MCP23017 has been tested with actual hardware.</STRONG><br>
 Supported hardware: pcf8574 (8 ports), pc8575 (16 ports), mcp2308 (8 ports), mcp23017 (16 ports).<BR>
-It also provides a simulated bus that allows for test/demo of the PEX plugin.
+The PEX home page allows you to select the default IC type for your setup. The default
+is preset to be the MCP23017 however it can be changed using the PEX configuration
+editor on the home page or alternatively it can be set to your needs by editing the
+file, SIP/plugins/port_externder/port_extender.py. Search for "create_default_config"
+and change the string from u"mcp23017" to any of u"mcp2308", u"pcf8575", or u"pcf8574".
+PEX also provides a simulated bus that allows for test/demo of the PEX plugin.
+Demo Mode is also selected if the smbus library is missing. This allows you to test the
+plugin without having any hardware io extender devices present.<BR>
+</P>
 <P>
 The maximum number of devices (any combination) cannot exceed eight.
 </P>
@@ -43,10 +51,13 @@ workaround:
 		SIP requirements for number of stations.</LI>
 	<LI>Return to the PEX plugin page and deselect autocofigure, then click the "SAVE" button.
 		This will save the current device configuration to permanent storage.</LI>
-	<LI>Using your favorite text editor, open the file SIP/data/pex-config.json. Replace every
+	<LI>Using your favorite text editor, open the file SIP/data/pex_config.json. Replace every
 		occurrence of "SimulatedBus" with the bus id for your controller (either "0" or "1").
 		Note that this value is a quoted string. Most users will use the value "1" since nearly
-		all Raspberry Pi's use bus id "1" for the I2C bus.</LI>
+		all Raspberry Pi's use bus id "1" for the I2C bus. You may need to change the device
+		address for one or more of the autoconfigured devices if the devices on your system
+	    are not mapped sequentially starting with 0x20. Search for the string, dev_addr and
+		replace with the address(es) of your device(s).</LI>
 	<LI> Save the modified file and restart SIP.</LI>
 <OL>
 <H2 CLASS="western"><A NAME="about-the-pex-files"></A>
