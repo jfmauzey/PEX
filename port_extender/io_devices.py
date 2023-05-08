@@ -19,22 +19,26 @@ class SimulatedBus:
     def __init__(self):
         pass
 
+    def write_byte(self, addr, data):
+        #print(f'SimBus write byte to addr 0x{addr:02x} with 0x{data:02x}')
+        print('SimBus write byte to addr 0x{:02x} with 0x{:02x}'.format(addr, data))
+
     def write_byte_data(self, addr, register, data):
-        #print(f'SimBus write byte to addr {addr:02x} register {register} with 0x{data:02x}'
-        pass
+        #print(f'SimBus write byte to addr 0x{addr:02x} register 0x{register:02x} with 0x{data:02x}')
+        print('SimBus write byte to addr 0x{:02x} register 0x{:02x} with 0x{:02x}'.format(addr, register, data))
 
     def write_word_data(self, addr, register, data):
-        #print(f'SimBus write word to 0x{addr:02x} register {register} data 0x{data:04x}'
-        pass
+        #print(f'SimBus write word to 0x{addr:02x} register 0x{register:02x} data 0x{data:04x}')
+        print('SimBus write word to 0x{:02x} register 0x{:02x} data 0x{:04x}'.format(addr, register, data))
 
     def write_quick(self, addr):  # Every tested addr will succeed.
-        print(f'SimBus write quick to 0x{addr:02x}')
-        pass
+        #print(f'SimBus write quick to 0x{addr:02x}')
+        print('SimBus write quick to 0x{:02x}'.format(addr))
 
 
 class IO_Extender:
     """This is the base class for all supported io_extender hardware."""
-    def __init__(self, bus_id="1", dev_addr=0x20, alr=False, initialize=False):
+    def __init__(self, bus_id="1", dev_addr=0x20, alr=False):
         """Must configure port hardware. The mcp family must initialize the
         Data Direction Register (DDR) to set all ports as outputs. The pcf
         hardware has no DDR to control the port behavior. The pcf devices
@@ -60,7 +64,7 @@ class MCP23017(IO_Extender):
     up to 25 mA each making it suitable to drive most relays regardless of
     whether the control logic is active high or active low.
 
-    Power On initialization programs all GPIO port pins as inputs.
+    Power On initialization defaults all GPIO port pins as inputs.
     If alr (Active Low Relay) is False then preset outputs to "0"
     If alr (Active Low Relay) is True then preset outputs to "1"
     After presetting the outputs, program the GPIO pins for Bank A
@@ -68,8 +72,8 @@ class MCP23017(IO_Extender):
     the outputs are driven, they drive to the correct logic level.
     This insures that all outputs are preset to turn off the attached stations.'''
 
-    def __init__(self, bus_id="1", dev_addr=0x20, alr=False, initialize=False):
-        super().__init__(bus_id, dev_addr, alr, initialize)
+    def __init__(self, bus_id="1", dev_addr=0x20, alr=False):
+        super().__init__(bus_id, dev_addr, alr)
         self._bankA = 0x12  # reg address for port GPIOA
         self._bankB = 0x13  # reg address for port GPIOB
 
@@ -81,7 +85,7 @@ class MCP23017(IO_Extender):
         try:
             self._bus.write_word_data(dev_addr, self._bankA, default_output_state)
         except Exception as e:
-            print("PEX: io_devices: failed to write to the device 0x{:02X}".format(self._dev_addr))
+            print("PEX: MCP23017: failed to write to the device 0x{:02X}".format(self._dev_addr))
             print(repr(e))
 
         # now program the device's direction control register so that all GPIO
@@ -96,8 +100,7 @@ class MCP23017(IO_Extender):
             val = ~val & 0xffff
         else:
             val = val & 0xffff
-
-        print('PEX: MCP23017: setting output to 0x{:04X}'.format(val))
+        print('DEBUG: PEX: MCP23017: set output port: 0x{:02X} to 0x{:04X}'.format(self._dev_addr, val))
         # starting address for word write is same as bank A
         self._bus.write_word_data(self._dev_addr, self._bankA, val)
 
@@ -105,69 +108,114 @@ class MCP23017(IO_Extender):
 class MCP2308(IO_Extender):
     '''The mcp2308 has 8 outputs that are capable of sinking or sourcing
     up to 25 mA each making it suitable to drive most relays regardless of
-    whether the control logic is active high or active low.'''
-    def __init__(self, bus_id="1", dev_addr=0x20, alr=False, initialize=False):
-        super().__init__(bus_id, dev_addr, alr, initialize)
-        if initialize:
-            #TODO: program DDR to all outputs and set outputs to low unless alr==True
-            pass
+    whether the control logic is active high or active low.
+    Power On initialization defaults all GPIO port pins as inputs.
+    If alr (Active Low Relay) is False then preset outputs to "0"
+    If alr (Active Low Relay) is True then preset outputs to "1"
+    After presetting the outputs, program the GPIO pins to be outputs.
+    This initializes the port so that when the outputs are driven, they
+    drive to the correct logic level. This insures that all outputs are
+    preset to turn off the attached stations.'''
+
+    def __init__(self, bus_id="1", dev_addr=0x20, alr=False):
+        super().__init__(bus_id, dev_addr, alr)
+        self._port = 0x09  # reg address for port
+
+        # preset the outputs before programming the DDR
+        if self._alr:                       # Low true logic
+            default_output_state = 0xff  # all ones turns stations off
+        else:
+            default_output_state = 0x00  # all zeroes turns stations off
+        try:
+            self._bus.write_byte_data(dev_addr, self._port, default_output_state)
+        except Exception as e:
+            print("PEX: MCP2308: failed to write to the device 0x{:02X}".format(self._dev_addr))
+            print(repr(e))
+
+        # now program the device's direction control register so that all GPIO
+        # pins are set to be outputs.
+        iodir = 0x00          # reg address for IO Direction control register
+        self._bus.write_byte_data(dev_addr, iodir, 0x00)  # All pins set as outputs
+        pass
 
     def set_output(self, val):
         if self._alr:            # Low true logic
             val = ~val & 0xff
         else:
             val = val & 0xff
-        # TODO: need to write to device.
-        print('MCP2308: setting output to 0x{:02X}'.format(val))
+        #print('DEBUG: PEX: MCP2308: set output port: 0x{:02X} to 0x{:02X}'.format(self._dev_addr, val))
+        self._bus.write_byte_data(self._dev_addr, self._port, val)
 
 
 class PCF8575(IO_Extender):
     '''The PCF8575 has 16 outputs that are capable of sinking
     up to 15 mA each making it suitable to drive most relays.'''
-    def __init__(self, bus_id=1, dev_addr=0x20, alr=False, initialize=False):
-        super().__init__(bus_id, dev_addr, alr, initialize)
-        if initialize:
-            # TODO: initialize outputs to high weakly driven
-            pass
+    def __init__(self, bus_id=1, dev_addr=0x20, alr=False):
+        super().__init__(bus_id, dev_addr, alr)
+
+        # Initialize outputs to turn stations off
+        if self._alr:  # Low true logic
+            default_output_state = 0xffff  # all ones turns stations off
+        else:
+            default_output_state = 0x0000  # all zeroes turns stations off
+        val1 = (default_output_state & 0xff)
+        val2 = (default_output_state & 0xff00) >> 8
+        try:
+            self._bus.write_byte(dev_addr, val1)
+            self._bus.write_byte(dev_addr, val2)
+        except Exception as e:
+            print("PEX: PCF8575: failed to write to the device 0x{:02X}".format(self._dev_addr))
+            print(repr(e))
 
     def set_output(self, val):
         if self._alr:            # Low true logic
             val = ~val & 0xffff
         else:
             val = val & 0xffff
-        # TODO: need to write to device.
-        print('PCF8575: setting output to 0x{:04X}'.format(val))
+        val1 = (val & 0xff)
+        val2 = (val & 0xff00) >> 8
+        #print('DEBUG: PEX: PCF8575: set output port: 0x{:02X} to 0x{:04X}'.format(self._dev_addr, val))
+        self._bus.write_byte(self._dev_addr, val1)  # Write first 8 bits P7..P0
+        self._bus.write_byte(self._dev_addr, val2)  # Write second 8 bits P17..P10
 
 
 class PCF8574(IO_Extender):
     '''The PCF8574 has 8 outputs that are capable of sinking
     up to 15 mA each making it suitable to drive most relays.'''
-    def __init__(self, bus_id=1, dev_addr=0x20, alr=False, initialize=False):
-        super().__init__(bus_id, dev_addr, alr, initialize)
-        if initialize:
-            # TODO: initialize outputs to high weakly driven
-            pass
+    def __init__(self, bus_id=1, dev_addr=0x20, alr=False):
+        super().__init__(bus_id, dev_addr, alr)
+
+        # Initialize outputs to turn stations off
+        if self._alr:  # Low true logic
+            default_output_state = 0xff  # all ones turns stations off
+        else:
+            default_output_state = 0x00  # all zeroes turns stations off
+        try:
+            self._bus.write_byte(dev_addr, default_output_state)
+        except Exception as e:
+            print("PEX: PCF8574: failed to write to the device 0x{:02X}".format(self._dev_addr))
+            print(repr(e))
 
     def set_output(self, val):
         if self._alr:          # Low true logic
             val = ~val & 0xff
         else:
             val = val & 0xff
-        # TODO: need to write to device.
-        print('pcf8574: setting output to 0x{:02X}'.format(val))
+        #print('DEBUG: PEX: PCF8574: set output port: 0x{:02X} to 0x{:02X}'.format(self._dev_addr, val))
+        self._bus.write_byte(self._dev_addr, val)
 
 
 def IO_Device(bus_id=1, ic_type="pcf8574", dev_addr=0x20,
-            alr=False, initialize=False):
+            alr=False):
     '''This is a factory to create the device interface for the io extender.'''
     if ic_type == "mcp23017":
-        return MCP23017(bus_id, dev_addr, alr, initialize)
+        return MCP23017(bus_id, dev_addr, alr)
     elif ic_type == "mcp2308":
-        return MCP2308(bus_id, dev_addr, alr, initialize)
+        return MCP2308(bus_id, dev_addr, alr)
     elif ic_type == "pcf8575":
-        return PCF8575(bus_id, dev_addr, alr, initialize)
+        return PCF8575(bus_id, dev_addr, alr)
     elif ic_type == "pcf8574":
-        return PCF8574(bus_id, dev_addr, alr, initialize)
+        return PCF8574(bus_id, dev_addr, alr)
     else:
         print(u"ERROR: PEX unsupported device type requested {}".format(ic_type))
 

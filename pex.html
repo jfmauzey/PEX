@@ -1,4 +1,6 @@
-$def with(pex, pex_c, pex_e, gv)
+$def with(pex, gv)
+$ pex_c = pex.pex_c
+$ pex_e = pex.edit_conf
 
 $var title: $_(u'SIP PEX Plugin')
 $var page: pex
@@ -9,9 +11,6 @@ $var page: pex
 
         jQuery("#cSubmit").click(function() {
             jQuery("#pexConfigForm").submit();
-        });
-        jQuery("button#cCancel").click(function(){
-            window.location="/";
         });
         jQuery("button#docButton").click(function(){
             window.open("static/docs/plugins/pex-docs.html", "_blank");

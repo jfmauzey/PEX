@@ -21,7 +21,6 @@
 from __future__ import print_function
 
 # local module imports
-import copy
 import sys
 
 import gv  # Get access to SIP's settings, gv = global variables
@@ -41,7 +40,6 @@ from port_extender.port_extender import PEX
 urls.extend(
     [
         u"/pex", u"plugins.pex.Settings",
-        u"/pex-scan", u"plugins.pex.scan",
         u"/pex-cfs", u"plugins.pex.ConfigSave"
     ]
 )
@@ -66,10 +64,19 @@ pex_footer2.label = u"Message"
 
 #  Write to shared memory. The web server reads in response
 #  to GET from /api/plugins.
-def pex_footer_update(dmode, status, port_config, autoconf, msg):
+def pex_footer_update(pex):
+    pstat = pex.pex_c[u"pex_status"]  # Controller status
+    cstat = pex.config_status         # Device config status
+    autoc = pex_c[u"auto_configure"]
+    msg = pex.pex_msg
+
+    if pex.pex_c[u"demo_mode"] or not pex.smbus_avail:
+        dmode = u"DEMO_MODE"
+    else:
+        dmode = u""
     r = dmode
-    r += u' {} - - - IO_Hardware: {}'.format(status, port_config)
-    r += u' - - - Autoconfig: {}'.format("enabled" if autoconf else "disabled")
+    r += u' {} - - - IO_Hardware: {}'.format(pstat, cstat)
+    r += u' - - - Autoconfig: {}'.format("enabled" if autoc else "disabled")
     pex_footer1.val = r
     pex_footer2.val = u'{}'.format(msg if len(msg) else "No message")
 
@@ -82,12 +89,7 @@ pex = PEX()
 pex_c = pex.pex_c
 
 #  Initialize the footer with the current status: Defined at startup.
-if pex_c[u"demo_mode"] or not pex.smbus_avail:
-    dmode = u"DEMO_MODE"
-else:
-    dmode = u""
-pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
-                  pex_c[u"auto_configure"], pex.pex_msg)
+pex_footer_update(pex)
 
 
 # PEX hooks two blinker signals from SIP:
@@ -97,28 +99,18 @@ pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
 
 # Output station settings to the IO Extneder(s) when signal received
 def on_zone_change(name, **kw):
-    """ Set state of all stations connected to the IO Extender(s) whew SIP signals
+    """ Set state of all stations connected to the IO Extender(s) when SIP signals
         a change in station state."""
 
     if pex_c[u"pex_status"] != u"enabled":
         print("PEX: Failure to set outputs because it is DISABLED and not in RUN mode.")
         pex.pex_msg = "ERROR: Failure to set outputs because PEX is DISABLED!."
-        if pex_c[u"demo_mode"] or not pex.smbus_avail:
-            dmode = u"DEMO_MODE"
-        else:
-            dmode = u""
-        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
-                          pex_c[u"auto_configure"], pex.pex_msg)
+        pex_footer_update(pex)
         return
     if pex.config_status != u"configured":
         print(u"PEX configuration error: plugin blocked, need to configure.")
         pex.pex_msg = "ERROR: Failure to set outputs. PEX needs to be configured."
-        if pex_c[u"demo_mode"] or not pex.smbus_avail:
-            dmode = u"DEMO_MODE"
-        else:
-            dmode = u""
-        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
-                          pex_c[u"auto_configure"], pex.pex_msg)
+        pex_footer_update(pex)
         return
     try:
         pex.set_output()
@@ -126,19 +118,15 @@ def on_zone_change(name, **kw):
         print(u"ERROR: PEX failed to set state of outputs.")
         print(repr(e))
         pex.pex_msg = "ERROR: Failure to set outputs. PEX needs to be configured."
-        if pex_c[u"demo_mode"] or not pex.smbus_avail:
-            dmode = u"DEMO_MODE"
-        else:
-            dmode = u""
-        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
-                          pex_c[u"auto_configure"], pex.pex_msg)
+        pex_footer_update(pex)
 
 zones = signal(u"zone_change")
 zones.connect(on_zone_change)
 
 
 def notify_option_change(name, **kw):
-    print(u"PEX: SIP Option settings changed. Check for need to reconfigure.")
+    global pex, pex_c
+    #print(u"PEX: SIP Option settings changed. Check for need to reconfigure.")
     if pex_c[u"pex_status"] != u"enabled":
         return
     if gv.sd[u"nst"] != pex.num_SIP_stations or \
@@ -164,14 +152,12 @@ def notify_option_change(name, **kw):
            pex_c[u"num_PEX_stations"] = 0
            pex.pex_msg = u"ERROR: Must manually reconfigure PEX."
 
-       # Save modified configuration to permanent storage in json file
+       # Save modified configuration to permanent storage and restart
        pex.save_config(pex_c)
-       if pex_c[u"demo_mode"] or not pex.smbus_avail:
-           dmode = u"DEMO_MODE"
-       else:
-           dmode = u""
-       pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
-                         pex_c[u"auto_configure"], pex.pex_msg)
+       del(pex)
+       pex = PEX()  # Restart
+       pex_c = pex.pex_c
+       pex_footer_update(pex)
 
 option_change = signal(u"option_change")
 option_change.connect(notify_option_change)
@@ -185,19 +171,14 @@ class Settings(ProtectedPage):
     """Load html page showing the PEX home page."""
 
     def GET(self):
-        if pex_c[u"demo_mode"] or not pex.smbus_avail:
-            dmode = u"DEMO_MODE"
-        else:
-            dmode = u""
-        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
-                          pex_c[u"auto_configure"], pex.pex_msg)
         try:
-            sp = template_render.pex(pex, pex_c, pex.edit_conf, gv)
+            sp = template_render.pex(pex, gv)
         except Exception as e:
             print("PEX: Settings.GET.template_render: Error likely caused by bad data in config.")
             print(repr(e))
             pex_c[u"pex_status"] = u"disabled"
             pex.pex_msg = u"ERROR PEX: bad config"
+        pex_footer_update(pex)
         return sp  # Possible that sp is not defined if error occurred
 
 
@@ -244,32 +225,11 @@ class ConfigSave(ProtectedPage):
             pex = PEX()  # Restart
             pex_c = pex.pex_c
 
-        if pex_c[u"demo_mode"] or not pex.smbus_avail:
-            dmode = u"DEMO_MODE"
-        else:
-            dmode = u""
-        pex_footer_update(dmode, pex_c[u"pex_status"], pex.config_status,
-                          pex_c[u"auto_configure"], pex.pex_msg)
+        pex_footer_update(pex)
         try:
-            sp = template_render.pex(pex, pex_c, pex.edit_conf, gv)
+            sp = template_render.pex(pex, gv)
             return sp
         except Exception as e:
             print("PEX: ConfigSave.GET.template_render: Error likely caused by bad data in config.")
             print(repr(e))
             return web.seeother(u"/")  # return to SIP home page
-
-class scan(ProtectedPage):
-    """
-    i2c scan page
-    """
-
-    def GET(self):
-        pex.discovered_devices = pex.scan_for_ioextenders(pex_c)
-        try:
-            sp = template_render.pex(pex, pex_c, pex.edit_conf, gv)
-            return sp
-        except Exception as e:
-            print("PEX: scan.GET.template_render: Error likely caused by bad data in config.")
-            print(repr(e))
-            return web.seeother(u"/")  # return to SIP home page
-

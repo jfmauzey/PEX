@@ -60,7 +60,6 @@ class PEX:
 
     def __init__(self):
         self.ports = []  # Runtime configured io-extender devices. Not saved in pex.json.
-        self.discovered_devices = []  # Results of smbus scan
         self.pex_msg = ""
         self.num_SIP_stations = gv.sd[u"nst"]  # Needed to determine if SIP options change
         self.SIP_alr = gv.sd['alr']  # Needed to determine if SIP options change
@@ -71,22 +70,21 @@ class PEX:
         self.pex_c = self.load_config()  # Load config from data/pex.json
         self.edit_conf = copy.deepcopy(self.pex_c)  # Initialize the copy for editing.
 
-    def create_device(self, bus_id="1", dev_addr=u"0x20", ic_type=u"pcf8574",
+    def create_device(self, bus_id="1", dev_addr=u"0x20", ic_type=u"mcp23017",
                       size=8, first=0, last=0, unused=0):
         return {u"bus_id": bus_id, u"dev_addr": dev_addr, u"ic_type": ic_type,
                 u"size": size, u"first": first, u"last": last, u"unused": unused}
 
     def create_default_config(self):
         # This configuration dictionary is saved in pex.json.
-        pex_conf = {
+        return {
             u"pex_status": u"enabled",  # enabled or disabled changed by PEX UI
             u"auto_configure": 1,
             u"demo_mode": 0,
             u"default_ic_type": u'mcp23017',  # Used by autoconfig and config editor
             u"num_PEX_stations": 0,
-            u"dev_configs": [],  # List of installed io device extenders
+            u"dev_configs": [],  # List of manually configured io devices
         }
-        return pex_conf
 
     def create_device_ports(self, conf):
         # Runtime configuration not saved in pex.json.
@@ -151,13 +149,14 @@ class PEX:
 
     # Save the pex config for this plugin to it's JSON file
     def save_config(self, pex_c):
-        # need to validate config before saving
         if self.validate_config(pex_c):
-            if pex_c[u"auto_configure"]:    # Don't check hardware if auto_configure
-                pex_c[u"dev_configs"] = []  # and don't save device configs either.
+            if pex_c[u"auto_configure"]:
+                pex_c[u"dev_configs"] = []
                 self.config_status = "configured"
             elif self.verify_hardware_config(pex_c):
                 self.config_status = "configured"
+            else:
+                self.config_status = "unconfigured"
         else:
             self.config_status = "unconfigured"
         with open(u"./data/pex_config.json", u"w") as f:  # write the settings to file
@@ -166,19 +165,18 @@ class PEX:
     def auto_config(self, pex_c):
         """
         The required number of io extender devices must be present in the
-        scan results to successfully create the SIP to Port mapping.
+        scan results to successfully create the SIP to PEX Port mapping.
         """
 
         smbus_id = self.default_smbus
         ic_type = pex_c[u"default_ic_type"]
         if ic_type in "pcf8574 mcp2308":
-                port_span = 8
-        else:
+            port_span = 8
+        else:  # "pcf8575 mcp23017"
             port_span = 16
 
         num_devs_needed = math.ceil(gv.sd[u"nst"] / port_span)
         discovered_devices = self.scan_for_ioextenders(pex_c)
-        self.discovered_devices = discovered_devices  # Saved for PEX-UI
         if num_devs_needed > len(discovered_devices):
             print("ERROR: PEX requires {} io extender devices: Detected = {}".format(num_devs_needed,
                                                                                      len(discovered_devices)))
@@ -190,9 +188,9 @@ class PEX:
         conf_d = []  # list of autoconfigured io extender devices
         for dev_id in range(num_devs_needed):  # In discovery order
             # create each device
-            first = dev_id * port_span        # Map device span to SIP Station slice
-            last = (dev_id + 1) * port_span   # Only works when port_span is constant
-            if last > gv.sd[u"nst"]:  # Unused ports are not used by SIP
+            first = dev_id * port_span    # Map device span to SIP Station slice
+            last = (dev_id + 1) * port_span   # Each port span is the same
+            if last > gv.sd[u"nst"]:          # Unused ports are not used by SIP
                 unused = last - gv.sd[u"nst"]
                 last = gv.sd[u"nst"]
             else:
@@ -230,7 +228,7 @@ class PEX:
             addr = int(dev[u"dev_addr"], 16)
             if not self.verify_device_handshake(dev[u"bus_id"], addr):
                 valid = False
-                print("PEX: verify_hardware_config -- device number {} no ACK handshake".format(i))
+                print("PEX: verify_hardware_config: NO ACK from device:{} at addr: {:02x} ".format(i, addr))
 
         # Verify that the individual device configs agrees with the total.
         pex_span = sum([dev[u"size"] for dev in conf[u"dev_configs"]])
@@ -269,12 +267,7 @@ class PEX:
           for mapping. The first device maps the first DeviceSize (8 or 16)
           ports to Station_1 through Station_N (N=8 or 16).'''
 
-        if self.pex_c[u"pex_status"] != "enabled":
-            print(u'ERROR: PEX not enabled. Need to reconfigure.')
-            print(u'       Updating port outputs is disabled.')
-            return
-
-        print("DeBug: PEX set outputs for {} ports.".format(gv.sd[u"nst"]))
+        #print("DEBUG: PEX set outputs for {} ports.".format(gv.sd[u"nst"]))
 
         for dev_id, dev in enumerate(self.pex_c[u"dev_configs"]):  # For each device set outputs to SIP values
             slice_for_dev = gv.srvals[dev[u"first"]:dev[u"last"]]
@@ -283,4 +276,4 @@ class PEX:
                 if v:
                     res |= 1 << i
             self.ports[dev_id].set_output(res)
-            print("Debug: PEX set_output to {:04X} for device {}".format(res, dev_id))
+            #print("DEBUG: PEX set_output to {:04X} for device {}".format(res, dev_id))
