@@ -1,0 +1,7 @@
+#Ignore old files from original port
+pcf857x_jfm.py
+pcf857x.html
+ioExpander.py
+
+.idea
+__pycache__/
