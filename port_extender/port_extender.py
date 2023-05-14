@@ -136,6 +136,8 @@ class PEX:
             else:  # Verify saved config
                 if self.verify_hardware_config(pex_config):
                     pex_config[u"num_PEX_stations"] = sum(dev[u"size"] for dev in pex_config[u"dev_configs"])
+                else:
+                    pex_config[u"num_PEX_stations"] = 0
 
             if pex_config[u"num_PEX_stations"] < gv.sd[u"nst"]:
                 self.config_status = u"unconfigured"
