@@ -103,7 +103,7 @@ class PEX:
             ports.append(port)
         return ports
 
-    # Read the saved pex config for this plugin from it's JSON file or create a default config
+    # Read the saved pex config for this plugin from its JSON file or create a default config
     def load_config(self):
         pex_config = {}
         try:
@@ -149,7 +149,7 @@ class PEX:
                 self.pex_msg = u"PEX running no errors."
         return pex_config
 
-    # Save the pex config for this plugin to it's JSON file
+    # Save the pex config for this plugin to its JSON file
     def save_config(self, pex_c):
         if self.validate_config(pex_c):
             if pex_c[u"auto_configure"]:
